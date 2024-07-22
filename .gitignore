@@ -54,8 +54,6 @@ yarn-error.log*
 *.bak
 *.swp
 
-# Text files
-*.txt
 
 # Key files
 *.pem
