@@ -1,90 +1,99 @@
 import os
-from src.scraper import download_from_url, download_from_title, save_pdf
-from src.pdf_parser import parse_pdf, extract_references
-from tqdm import tqdm
-from src.prompting.prompts import summary_generator_prompt, qa_prompt, parse_qa
-import requests
 import time
+import requests
+from tqdm import tqdm
+import tempfile
+from src.scraper import download_from_title
+from src.pdf_parser import parse_pdf, parse_reference, get_reference_ids
+from src.prompting.prompts import summary_generator_prompt, qa_prompt, parse_qa
+from src.send_to_postgress import main_article_dict_to_postgres, references_data_to_postgres, qa_for_ref_to_postgres
+from src.encoder import EncoderModel
+from src.ref_data import RefEmbeddings
+from src.llm import GeminiModel
+
+# from src.llm import ClaudeModel
+
+encoder = EncoderModel('bert-base-uncased')
+llm_model = GeminiModel()
 
 
-def download_all_references(references, base_paper=None):
+# llm_model = ClaudeModel()
+
+
+def download_all_references(article_dict, base_paper=None):
     parsed_references = {}
-
-    for i, title in tqdm(enumerate(references), total=len(references)):
-        ref_id = i + 1
+    for ref_dict in tqdm(article_dict['references'], desc="Downloading references"):
         time.sleep(1)
-        if title != '':
+        ref_id = ref_dict['ref_id']
+        title = ref_dict['title']
+        if title:
             file_path, paper_url = download_from_title(title, is_reference=True, base_paper=base_paper)
-            if file_path is None:
-                pass
-            else:
+            if file_path:
                 try:
                     parsed_paper = parse_pdf(file_path, is_reference=True, base_paper=base_paper)
                     parsed_references[ref_id] = {'parsed_paper': parsed_paper, 'url': paper_url}
-                except:
+                except Exception:
                     pass
     return parsed_references
 
 
-def get_paper_summary(parsed_pdf):
-    paper_data = [section['heading'] + '\n' + section['text'] for section in parsed_pdf['sections']]
-    input_prompt = summary_generator_prompt.format(research_paper=paper_data)
-    summary = requests.post('http://localhost:8001/get_response', json={'input_prompt': input_prompt}).json()
-    return summary
+def get_temp_file(pdf_content):
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+        temp_file.write(pdf_content)
+        temp_file_path = temp_file.name
+    return temp_file_path
 
 
-def process(paper_dict, url):
-    file_path = paper_dict[url]['save_path']
-    print('file_path', file_path)
-    paper_dir = '/'.join(file_path.split('\\')[:-1])
+def process(paper_content, url):
+    # file_path = paper_dict[url]['save_path']
+    # print('file_path', file_path)
+    # paper_dir = os.path.dirname(file_path)
 
-    if 'parsed_pdf' not in paper_dict[url]:
-        parsed_pdf = parse_pdf(file_path)
-        paper_dict[url]['parsed_pdf'] = parsed_pdf
+    tmp_file_path = get_temp_file(paper_content)
 
-    if 'references' not in paper_dict[url]:
-        references = extract_references(paper_dict[url]['save_path'])
-        print('references', references)
-        paper_dict[url]['references'] = references
+    # if 'parsed_pdf' not in paper_dict[url]:
+    parsed_pdf_dict = parse_pdf(tmp_file_path)
+    os.remove(tmp_file_path)
+    main_article_dict_to_postgres(url, parsed_pdf_dict)
 
-    if not os.path.exists(os.path.join(paper_dir, 'references')):
-        os.makedirs(os.path.join(paper_dir, 'references'))
+    all_references = get_reference_ids(parsed_pdf_dict)
+    results = {}
+    ref_id_to_ref = {}
+    for ref in parsed_pdf_dict['references']:
+        ref_id_to_ref[ref['ref_id']] = ref
+    for ref_id in tqdm(all_references, desc="Parsing references"):
+        reference = ref_id_to_ref[ref_id]
+        title = reference['title']
+        ref_id = reference['ref_id']
+        authors = reference['authors']
+        reference_content, reference_url = download_from_title(title)
+        parsed_reference = parse_reference(reference_content)
+        qa_for_ref = get_qa_for_refs(parsed_pdf_dict, parsed_reference)
+        qa_for_ref_to_postgres(url, ref_id, qa_for_ref, authors)
+        results['ref_id'] = {'ref_id': ref_id, 'qa': qa_for_ref, 'authors': authors}
+        # reference_chunks = encoder.chunk_text(parsed_reference)
+        # embeddings = encoder.encode_text(reference_chunks)
+        # reference_data = [RefEmbeddings(ref_id=ref_id, chunk=chunk, embeddings=emb) for chunk, emb in
+        #                   zip(reference_chunks, embeddings)]
+        #
+        # references_data_to_postgres(reference_data)
+        break
 
-    if 'parsed_references' not in paper_dict[url]:
-        parsed_references = download_all_references(paper_dict[url]['references'],
-                                                    file_path.split('\\')[-1].replace('.pdf', ''))
-        paper_dict[url]['parsed_references'] = parsed_references
-
-    if 'summary' not in paper_dict[url]:
-        paper_dict[url]['summary'] = get_paper_summary(paper_dict[url]['parsed_pdf'])
-
-    if 'qa_for_references' not in paper_dict[url]:
-        qa_for_references = get_qa_for_refs(paper_dict[url]['references'],
-                                            paper_dict[url]['parsed_references'])
-
-        paper_dict[url]['qa_for_references'] = qa_for_references
-    return paper_dict
+    return results
 
 
-def get_qa_for_refs(references, parsed_references):
-    qa_for_references = {}
-    for section_title, section in tqdm(references.items(), desc=f'Getting QA for sections',
-                                       total=len(references.items())):
-        if section_title not in qa_for_references:
-            qa_for_references[section_title] = {}
-        section_references = section['references']
-        for ref_id in tqdm(section_references, desc=f'Getting QA for references', total=len(section_references)):
-            if ref_id in parsed_references:
-                ref_dict = parsed_references[ref_id]['parsed_paper']
-                if ref_id not in qa_for_references[section_title]:
-                    qa_for_references[section_title][ref_id] = {}
-                    input_prompt = qa_prompt(ref_dict, section_title, section['section_text'])
-                    answer = requests.post('http://localhost:8001/get_response',
-                                           json={'input_prompt': input_prompt}).json()['response']
-                    qa_for_references[section_title][ref_id]['qa_pairs'] = parse_qa(answer)
-                    qa_for_references[section_title][ref_id]['paper_data'] = {'title': ref_dict['title'],
-                                                                              'first_author':
-                                                                                  ref_dict['authors'].split(';')[0],
-                                                                              'url': parsed_references[ref_id][
-                                                                                  'url']}
-    return qa_for_references
+def get_qa_for_refs(main_paper, parsed_reference):
+    main_paper_content = ''
+    main_paper_content += 'Title: ' + main_paper['title'] + '\n' + 'Abstract: ' + main_paper['abstract']
+    main_paper_content += '\n'.join([section['heading'] + '\n' + section['text'] for section in main_paper['sections']])
+    main_paper_summary = get_paper_summary(main_paper_content)
+    ref_paper_summary = get_paper_summary(parsed_reference)
+    input_prompt = qa_prompt(main_paper_summary, ref_paper_summary)
+    response = llm_model.get_response(input_prompt)
+    return response
+
+
+def get_paper_summary(text):
+    input_prompt = summary_generator_prompt.format(research_paper=text)
+    response = llm_model.get_response(input_prompt)
+    return response['response']
