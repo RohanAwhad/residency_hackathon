@@ -7,7 +7,7 @@ class Paper(BaseModel):
   authors: str  # scipdf gives authors in ';' separated string
   abstract: str
   sections: str
-  markdown_summary: Optional[str] = None
+  summary_markdown: Optional[str] = None
   code: Optional[str] = None
 
 
@@ -22,8 +22,8 @@ class References(BaseModel):
 
 
 
-class Embedding(BaseModel):
-  _id: int  # serial primary key
+class Embeddings(BaseModel):
   paper_url: HttpUrl
   chunk: str
   embedding: List[float]  # Vector with 384 dimensions
+
