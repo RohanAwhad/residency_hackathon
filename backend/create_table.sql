@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS VECTOR;
 CREATE TABLE IF NOT EXISTS papers (
   paper_url TEXT PRIMARY KEY,
   title TEXT,
+  authors TEXT,
   abstract TEXT,
   sections TEXT, --json str
   summary_markdown TEXT,
@@ -11,14 +12,14 @@ CREATE TABLE IF NOT EXISTS papers (
 
 CREATE TABLE IF NOT EXISTS references_table (
   id SERIAL PRIMARY KEY,
-  curr_paper_url TEXT,
-  ref_paper_url TEXT,
-  q1 TEXT,
-  q2 TEXT,
-  q3 TEXT,
-  CONSTRAINT fk_curr_paper FOREIGN KEY (curr_paper_url) REFERENCES papers(paper_url),
-  CONSTRAINT fk_ref_paper FOREIGN KEY (ref_paper_url) REFERENCES papers(paper_url),
-  UNIQUE (curr_paper_url, ref_paper_url)
+  referred_by_paper_url TEXT,
+  referred_paper_url TEXT,
+  q1_answer TEXT,
+  q2_answer TEXT,
+  q3_answer TEXT,
+  CONSTRAINT fk_curr_paper FOREIGN KEY (referred_by_paper_url) REFERENCES papers(paper_url),
+  CONSTRAINT fk_ref_paper FOREIGN KEY (referred_paper_url) REFERENCES papers(paper_url),
+  UNIQUE (referred_by_paper_url, referred_paper_url)
 );
 
 

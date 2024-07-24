@@ -1,22 +1,29 @@
-from pydantic import BaseModel
-
-'''
-title
-abstract
-sections
-  - section heading: text
-- references: list
-  - title
-    year
-    journal
-    authors
-    id
-'''
+from pydantic import BaseModel, HttpUrl
+from typing import Optional, List, Dict
 
 class Paper(BaseModel):
-  paper_url: str
+  paper_url: HttpUrl  # primary key
   title: str
+  authors: str  # scipdf gives authors in ';' separated string
   abstract: str
   sections: str
-  markdown_summary: str
-  code: str
+  markdown_summary: Optional[str] = None
+  code: Optional[str] = None
+
+
+class References(BaseModel):
+  # both urls are foreign keys referring to paper_url in Paper table
+  # (referred_by_paper_url, reference_paper_url) are unique
+  referred_by_paper_url: HttpUrl
+  reference_paper_url: HttpUrl
+  q1_answer: Optional[str] = None
+  q2_answer: Optional[str] = None
+  q3_answer: Optional[str] = None
+
+
+
+class Embedding(BaseModel):
+  _id: int  # serial primary key
+  paper_url: HttpUrl
+  chunk: str
+  embedding: List[float]  # Vector with 384 dimensions

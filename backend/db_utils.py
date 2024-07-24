@@ -1,6 +1,8 @@
 import os
 import psycopg2
 
+from psycopg2 import sql
+
 from db_models import Paper
 
 # Connect to the database
@@ -38,7 +40,23 @@ def create_tables(conn):
 
 
 @with_connection
-def insert_paper(conn, paper: Paper): pass
+def insert_paper(conn, paper: Paper):
+  insert_papers_query = sql.SQL("""
+    INSERT INTO papers (
+      paper_url, title, authors, abstract, sections
+    ) VALUES (%s, %s, %s, %s, %s)
+  """)
+  item = (
+    str(paper.paper_url),
+    paper.title,
+    paper.authors,
+    paper.abstract,
+    paper.sections,
+  )
+  with conn.cursor() as cur:
+    cur.execute(insert_papers_query, item)
+
+
 
 @with_connection
 def insert_batch_papers(conn, papers: list[Paper]): pass
