@@ -25,5 +25,9 @@ class References(BaseModel):
 class Embeddings(BaseModel):
   paper_url: HttpUrl
   chunk: str
+
+class EmbeddingsIn(Embeddings):
   embedding: List[float]  # Vector with 384 dimensions
 
+class EmbeddingsOut(Embeddings):
+  sim_score: float

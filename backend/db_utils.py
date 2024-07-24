@@ -3,7 +3,7 @@ import psycopg2
 
 from psycopg2 import sql
 
-from db_models import Paper, References, Embeddings
+from db_models import Paper, References, Embeddings, EmbeddingsIn, EmbeddingsOut
 
 # Connect to the database
 PG_USER = os.environ['PG_USER']
@@ -142,10 +142,28 @@ def get_references_of_paper(conn, referred_by_paper_url: str):
 # Embeddings
 # ===
 @with_connection
-def insert_batch_embeddings(conn, embds: list[Embeddings]):
+def insert_batch_embeddings(conn, embds: list[EmbeddingsIn]):
   insert_query = sql.SQL('''INSERT INTO embeddings_table (paper_url, chunk, embedding) VALUES (%s, %s, %s)''')
   items = [(str(x.paper_url), x.chunk, x.embedding) for x in embds]
   with conn.cursor() as cur: cur.executemany(insert_query, items)
+
+@with_connection
+def get_top_k_similar(conn, query_embedding: list[float], paper_urls: list[str], k: int) -> list[EmbeddingsOut]:
+  search_query = sql.SQL('''
+    SELECT paper_url, chunk, (1 - (embedding <=> VECTOR(%s::VECTOR(384)))) as sim_score
+    FROM embeddings_table
+    WHERE paper_url = ANY(%s)
+    ORDER BY sim_score DESC
+    LIMIT %s
+  ''')
+  item = (query_embedding, paper_urls, k)
+  with conn.cursor() as cur:
+    cur.execute(search_query, item)
+    results = cur.fetchall()
+
+  return [EmbeddingsOut(paper_url=res[0], chunk=res[1], sim_score=res[2]) for res in results]
+
+
 
 
 if __name__ == '__main__':
