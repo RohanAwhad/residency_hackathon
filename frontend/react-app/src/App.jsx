@@ -10,19 +10,22 @@ function App() {
   const [url, setUrl] = useState(undefined)
   const [mindmap, setMindmap] = useState(undefined)
 
-  useEffect(() => {
-    function handleStorageChange () {
-      console.log('storage change')
-      setUrl(localStorage.getItem('currentUrl'))
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
-
+  // ===
+  // Utils
+  // ===
   // useEffect(() => {
-  //   setUrl("https://arxiv.org/pdf/2006.15720")
+  //   function handleStorageChange () {
+  //     console.log('storage change')
+  //     setUrl(localStorage.getItem('currentUrl'))
+  //   }
+
+  //   window.addEventListener('storage', handleStorageChange)
+  //   return () => window.removeEventListener('storage', handleStorageChange)
   // }, [])
+
+  useEffect(() => {
+    setUrl("https://arxiv.org/pdf/2006.15720")
+  }, [])
 
   let codeTab;
   if (mindmap) { codeTab = <CodeTab mindmap={mindmap} /> }

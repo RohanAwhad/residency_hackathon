@@ -28,16 +28,33 @@ const GraphTab = (props) => {
   const refMm = useRef(null)
   const refToolbar = useRef(null)
 
+  const updateMarkdown = (newMd) => {
+    setMarkdown(prevMd => {
+      return `${prevMd}${newMd}`
+    })
+  }
+
   useEffect(() => {
     // use api to get markdown
     if (!props.url) return;
-    getMindmapMd(props.url).then(md => {
-      setMarkdown(md)
-      props.setMindmap(md)
-    })
+    
+    const iterator = getMindmapMd(props.url)
+    let processNext = () => {
+      iterator.next().then(({ value, done }) => {
+        if (done) {
+          return;
+        }
+        console.log(value)
+        updateMarkdown(value);
+        processNext();
+      }).catch(error => {
+        console.error('Error:', error);
+      });
+    }
+    processNext();
 
     // const md = getMindmap()
-    // setMarkdown(md)
+    // props.setMindmap(md)
   }, [])
 
   useEffect(() => {
@@ -61,6 +78,7 @@ const GraphTab = (props) => {
     mm.setData(root);
     mm.fit();
     console.log(markdown)
+    props.setMindmap(markdown)
   }, [refMm.current, markdown]);
 
   // let ret;

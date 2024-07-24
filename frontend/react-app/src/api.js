@@ -302,17 +302,49 @@ import axios from 'axios';
 
 const localApiUrl = 'http://localhost:8080';
 
-export const getMindmapMd = async (url) => {
+export const getMindmapMd = async function* (url) {
   try {
-    const response = await axios.get(`${localApiUrl}/mindmap_md`, {
-      params: { url: url },
-    });
-    return response.data;
+    const response = await fetch(`${localApiUrl}/get_mindmap?url=${url}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      yield decoder.decode(value, { stream: true });
+    }
   } catch (error) {
-    console.error('Error fetching mindmap:', error);
-    throw error;
+    console.error('Error:', error);
   }
-};
+}
+
+const url = "http://localhost:8080/get_mindmap?url=tmp";
+
+// export const getMindmapMd = async (url) => {
+//   try {
+//     const res = await fetch(`${localApiUrl}/get_mindmap?url=${url}`);
+//     const reader = res.body.getReader();
+//     const decoder = new TextDecoder('utf-8');
+
+//     while (true) {
+//       const chunk = await reader.read();
+//       if (chunk.done) {
+//         break;
+//       }
+//       const decodedChunk = decoder.decode(chunk.value, { stream: true });
+//       const lines = decodedChunk.split('\n');
+//       console.log(lines);
+//     }
+//   } catch (error) {
+//     console.error(error)
+//     throw error;
+//   }
+// };
 
 export const generateCode = async (mindmap) => {
   try {
