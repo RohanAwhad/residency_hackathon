@@ -9,7 +9,6 @@ from src.indexer import create_index
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-app = FastAPI()
 paper_dict_path = './data/paper_metadata.json'
 
 if os.path.exists(paper_dict_path):
@@ -22,7 +21,6 @@ if os.path.exists(paper_dict_path):
 # Initialize the encoder
 model = EncoderModel('bert-base-uncased')
 
-@app.post("/retrieve")
 def retrieve_from_index(request: dict):
     index = faiss.IndexFlatIP(768)
     """Retrieve paragraphs from the index"""
@@ -41,5 +39,3 @@ def retrieve_from_index(request: dict):
     return {'context': context}
 
 
-if __name__ == '__main__':
-    uvicorn.run("retriever_api:app", host='0.0.0.0', port=8002, workers=1)
