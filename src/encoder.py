@@ -15,6 +15,10 @@ class EncoderModel:
         self.model = AutoModel.from_pretrained(model_name)
         self.model.to(self.device)
 
+    def chunk_text(self, text, max_length=256):
+        """Split text into chunks of a maximum length"""
+        return [text[i:i + max_length] for i in range(0, len(text), max_length)]
+
     def encode_batch(self, text_batch):
         """Encode a batch of text"""
         with torch.no_grad():

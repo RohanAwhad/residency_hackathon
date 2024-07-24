@@ -57,26 +57,26 @@ def save_pdf(content, paper_url, is_reference=False, base_paper=None):
     return file_path
 
 
-def download_from_url(url, is_reference=False, base_paper=None):
+def download_from_url(url):
     try:
-        pdf_response = requests.get(url)
-        print(pdf_response)
-        save_path = save_pdf(pdf_response.content, url, is_reference=is_reference, base_paper=base_paper)
-        return save_path
+        pdf_response = requests.get(url).content
+        # print(pdf_response)
+        # save_path = save_pdf(pdf_response.content, url, is_reference=is_reference, base_paper=base_paper)
+        return pdf_response
     except Exception as e:
         print(e)
         print("Paper not found")
         return None
 
 
-def download_from_title(title, is_reference=False, base_paper=None):
+def download_from_title(title):
     try:
         paper_url = search_paper(title)
         if paper_url is not None:
-            pdf_response = requests.get(paper_url)
-            save_path = save_pdf(pdf_response.content, paper_url, is_reference=is_reference,
-                                 base_paper=base_paper)
-            return save_path, paper_url
+            pdf_response = requests.get(paper_url).content
+            # save_path = save_pdf(pdf_response.content, paper_url, is_reference=is_reference,
+            #                      base_paper=base_paper)
+            return pdf_response, paper_url
         else:
             print("Paper not found")
             return None, None
