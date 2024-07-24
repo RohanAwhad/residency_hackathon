@@ -27,9 +27,6 @@ function App() {
     setUrl("https://arxiv.org/pdf/2006.15720")
   }, [])
 
-  let codeTab;
-  if (mindmap) { codeTab = <CodeTab mindmap={mindmap} /> }
-  else { codeTab = "Generating ..." }
 
   return (
     <>

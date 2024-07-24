@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { generateCode, getDummyCode } from '@/api'
+import { getCode, getDummyCode } from '@/api'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { solarizedlight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -8,10 +8,27 @@ import { solarizedlight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 const CodeTab = (props) => {
   const [code, setCode] = useState('')
 
-  useEffect(() => {
-    generateCode(props.mindmap).then(code => {
-      setCode(code)
+  const updateCode = (newCode) => {
+    setCode(prevCode => {
+      return `${prevCode}${newCode}`
     })
+  }
+
+  useEffect(() => {
+    const iterator = getCode(props.mindmap)
+    let processNext = () => {
+      iterator.next().then(({ value, done }) => {
+        if (done) {
+          return;
+        }
+        console.log(value)
+        updateCode(value);
+        processNext();
+      }).catch(error => {
+        console.error('Error:', error);
+      });
+    }
+    processNext();
 
     // setCode(getDummyCode())
   }, [])

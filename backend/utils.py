@@ -58,11 +58,11 @@ def get_paper(url: str) -> Paper:
 def generate_mindmap(paper: Paper):
   model = genai.GenerativeModel(gemini_flash)
   with open(f'{PROMPT_DIR}/paper_to_mindmap_prompt.txt', 'r') as f: sys_prompt = f.read()
-  # res = model.generate_content([sys_prompt, paper.model_dump_json(indent=2)], stream=True)
-  res = model.generate_content(['What is the meaning of life?'], stream=True)
+  res = model.generate_content([sys_prompt, paper.model_dump_json(indent=2)], stream=True)
   for chunk in res:
     print(chunk.text)
     yield chunk.text
+  yield "<|im_end|>"
 
 
 def generate_code(mindmap):
@@ -70,7 +70,7 @@ def generate_code(mindmap):
   with open(f'{PROMPT_DIR}/paper_to_python_prompt.txt', 'r') as f: sys_prompt = f.read()
   res = model.generate_content([sys_prompt, mindmap], stream=True)
   for chunk in res: yield chunk.text
-  yield 0
+  yield "<|im_end|>"
 
 
 # ===

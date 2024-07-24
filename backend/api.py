@@ -23,34 +23,37 @@ class StreamOut(BaseModel):
   chunk: str
   is_done: bool
 
-def stream_response(iter):
-  for chunk in iter:
-    print(chunk)
-    yield chunk
+mindmap_chunks = ''
+def stream_response(iter, callable):  # callable is the function that will be called after all chunks are sent to save it in DB
+  if mindmap_chunks:
+    yield mindmap_chunks
+  else:
+    all_chunks = []
+    for chunk in iter:
+      if chunk == "<|im_end|>": break
+      all_chunks.append(chunk)
+      yield chunk
+    callable(''.join(all_chunks))
+
+def tmp(x):
+  global mindmap_chunks
+  mindmap_chunks = x
 
 @app.get('/get_mindmap')
 def read_minmap_md(url: str):
   paper = utils.get_paper(url)
   mindmap_iter = utils.generate_mindmap(paper)
-  return StreamingResponse(mindmap_iter, media_type='text/plain')
+  # TODO (rohan): add code to save the mindmap in the DB at appropriate location
+  return StreamingResponse(stream_response(mindmap_iter, tmp), media_type='text/plain')
 
 class CodeReqIn(BaseModel):
   mindmap: str
 
-# TODO (rohan): figure this one out too!
+# TODO (rohan): solve for <plan> ... </plan> in the code streaming. Use a var to track, if is_planning
 @app.post('/get_code')
 def generate_code(inp: CodeReqIn):
   code_iter = utils.generate_code(inp.mindmap)
-  code = []
-  for chunk in code_iter:
-    if chunk == 0: break
-    code.append(chunk)
-    # stream the code to the client
-    print(chunk)
-    print('-'*80)
-    yield StreamOut(chunk=chunk, is_done=False)
-
-  yield StreamOut(chunk=''.join(code), is_done=True)
+  return StreamingResponse(code_iter, media_type='text/plain')
 
 
 if __name__ == '__main__':
