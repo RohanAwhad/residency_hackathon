@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -22,26 +23,21 @@ class StreamOut(BaseModel):
   chunk: str
   is_done: bool
 
+def stream_response(iter):
+  for chunk in iter:
+    print(chunk)
+    yield chunk
+
 @app.get('/get_mindmap')
 def read_minmap_md(url: str):
   paper = utils.get_paper(url)
   mindmap_iter = utils.generate_mindmap(paper)
-  mindmap = []
-  for chunk in mindmap_iter:
-    if chunk == 0: break
-    mindmap.append(chunk)
-    # stream the mindmap to the client
-    print(chunk)
-    print('-'*80)
-    yield StreamOut(chunk=chunk, is_done=False)
-  
-  # signal that the mindmap generation is done
-  yield StreamOut(chunk=''.join(mindmap), is_done=True)
-  
+  return StreamingResponse(mindmap_iter, media_type='text/plain')
 
 class CodeReqIn(BaseModel):
   mindmap: str
 
+# TODO (rohan): figure this one out too!
 @app.post('/get_code')
 def generate_code(inp: CodeReqIn):
   code_iter = utils.generate_code(inp.mindmap)
