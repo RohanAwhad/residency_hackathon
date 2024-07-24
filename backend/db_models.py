@@ -15,7 +15,7 @@ class References(BaseModel):
   # both urls are foreign keys referring to paper_url in Paper table
   # (referred_by_paper_url, reference_paper_url) are unique
   referred_by_paper_url: HttpUrl
-  reference_paper_url: HttpUrl
+  referred_paper_url: HttpUrl
   q1_answer: Optional[str] = None
   q2_answer: Optional[str] = None
   q3_answer: Optional[str] = None

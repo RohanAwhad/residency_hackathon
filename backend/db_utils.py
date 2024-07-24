@@ -106,11 +106,36 @@ def insert_reference(conn, ref: References):
 def insert_reference_answers(conn, ref: References):
   update_query = sql.SQL('''
     UPDATE references_table 
-    SET q1_answer = %s, q2_answer = %s q3_answer = %s 
+    SET q1_answer = %s, q2_answer = %s, q3_answer = %s 
     WHERE referred_by_paper_url = %s AND referred_paper_url = %s
   ''')
   item = [ref.q1_answer, ref.q2_answer, ref.q3_answer, str(ref.referred_by_paper_url), str(ref.referred_paper_url)]
   with conn.cursor() as cur: cur.execute(update_query, item)
+
+@with_connection
+def get_references_of_paper(conn, referred_by_paper_url: str):
+  read_query = sql.SQL('''
+    SELECT referred_by_paper_url, referred_paper_url, q1_answer, q2_answer, q3_answer
+    FROM references_table
+    WHERE referred_by_paper_url = %s
+  ''')
+  item = (referred_by_paper_url, )
+  with conn.cursor() as cur:
+    cur.execute(read_query, item)
+    result = cur.fetchall()
+
+  refs = []
+  for res in result:
+    _ = References(
+      referred_by_paper_url = res[0],
+      referred_paper_url = res[1],
+      q1_answer = res[2],
+      q2_answer = res[3],
+      q3_answer = res[4],
+    )
+    refs.append(_)
+  return refs
+    
 
 
 # ===
