@@ -98,7 +98,7 @@ def insert_batch_references(conn, references: list[db_models.References]) -> Non
     (ref.referred_by_paper_url, ref.reference_id, ref.referred_sections, ref.title, ref.authors, ref.journal, ref.year)
     for ref in references
   ]
-  with conn.cursor() as cur: cur.executemany(insert_query, items)
+  with conn.cursor() as cur: cur.executemany(sql.SQL(insert_query), items)
 
 
 @with_connection
@@ -135,6 +135,39 @@ def get_references_of_paper(conn, referred_by_paper_url: str):
     )
     refs.append(_)
   return refs
+
+
+import dataclasses
+from typing import Optional
+
+@dataclasses.dataclass
+class RefInfoOut:
+  title: str
+  authors: list[str]
+  journal: Optional[str]
+  year: Optional[int]
+
+@with_connection
+def get_reference_info_for_searching(conn, referred_by_paper_url, reference_id: str) -> RefInfoOut:
+  read_query = sql.SQL('''
+    SELECT title, authors, journal, year
+    FROM references_table
+    WHERE
+      referred_by_paper_url = %s
+      AND reference_id = %s
+    ;
+  ''')
+  item = (referred_by_paper_url, reference_id)
+  with conn.cursor() as cur:
+    cur.execute(read_query, item)
+    res = cur.fetchone()
+
+  return RefInfoOut(
+    title=res[0],
+    authors = [x.strip() for x in res[1].split('; ') if x.strip()] if res[1] else None,
+    journal = res[2] if res[2] else None,
+    year = res[3] if res[3] else None
+  )
     
 
 
