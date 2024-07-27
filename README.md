@@ -32,4 +32,4 @@ for now let's implement the above, as soon as we get the paper url
     - Any new row added here would trigger a notification to a channel, and python would be listening to that channel, so it will get on it ASAP.
   - Should I just go with threading? At the end of the day, its mostly that only.
     - I can use a dict { paper_url: thread }
-
+2. Given a paper_url and reference_id, search, download, parse and do QA for 3 questions on the reference paper

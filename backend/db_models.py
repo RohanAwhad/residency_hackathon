@@ -21,6 +21,13 @@ class References:
   reference_id: str  # provided by parsed version of current paper
   referred_sections: str  # list of json objs {"heading": "..."}
 
+  # useful info for searching and downloading the paper
+  title: str
+  authors: str
+  journal: str
+  year: str
+
+  # main info that is required
   referred_paper_url: Optional[str] = None  # will add it as we search it
   q1_answer: Optional[str] = None
   q2_answer: Optional[str] = None

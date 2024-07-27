@@ -16,6 +16,12 @@ CREATE TABLE IF NOT EXISTS references_table (
   referred_by_paper_url TEXT NOT NULL,
   reference_id TEXT NOT NULL,
   referred_sections TEXT NOT NULL,
+
+  title TEXT NOT NULL,
+  authors TEXT,
+  journal TEXT,
+  year INTEGER,
+
   referred_paper_url TEXT,
   q1_answer TEXT,
   q2_answer TEXT,

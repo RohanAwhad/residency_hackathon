@@ -91,9 +91,11 @@ def read_paper(conn, paper_url: str):
 # insertion
 @with_connection
 def insert_batch_references(conn, references: list[db_models.References]) -> None:
-  insert_query = sql.SQL('''INSERT INTO references_table (referred_by_paper_url, reference_id, referred_sections) VALUES (%s, %s, %s)''')
+  keys_to_add = ('referred_by_paper_url', 'reference_id', 'referred_sections', 'title', 'authors', 'journal', 'year')
+  insert_query = f'INSERT INTO references_table ({", ".join(keys_to_add)}) VALUES ({", ".join(["%s"] * len(keys_to_add))})'
+
   items = [
-    (ref.referred_by_paper_url, ref.reference_id, ref.referred_sections)
+    (ref.referred_by_paper_url, ref.reference_id, ref.referred_sections, ref.title, ref.authors, ref.journal, ref.year)
     for ref in references
   ]
   with conn.cursor() as cur: cur.executemany(insert_query, items)

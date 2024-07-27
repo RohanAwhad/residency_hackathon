@@ -87,7 +87,11 @@ def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
     db_models.References(
       referred_by_paper_url = url,
       reference_id = ref['ref_id'],
-      referred_sections = json.dumps(ref_id_to_sec_heading[ref['ref_id']])
+      referred_sections = json.dumps(ref_id_to_sec_heading[ref['ref_id']]),
+      title = ref['title'],
+      authors = ref['authors'],
+      journal = ref['journal'],
+      year = ref['year'],
     )
     for ref in pdf_dict['references']
     if ref['ref_id'] in ref_id_to_sec_heading
