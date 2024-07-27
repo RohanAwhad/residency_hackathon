@@ -1,73 +1,88 @@
+import os
+import requests
+import scipdf
+import tempfile
+
 import db_utils
 import db_models
-import scipdf
+import utils
 
-def get_section_text(sections):
-  return '\n\n'.join([f"### {sec['heading']}\n\n{sec['text']}\n" for sec in sections])
+import time
+start = time.monotonic()
+url = "https://arxiv.org/pdf/1809.05724"
+res = utils.process_curr_paper(url)
+print(res)
+end = time.monotonic()
+print(f'Time Taken to process curr paper: {end - start} secs')
+exit(0)
+'''
 
-url = "https://arxiv.org/pdf/1801.03924v2"
-url2 = 'https://arxiv.org/pdf/rohan'
+# Download the paper
+if not url.endswith('.pdf'): url += '.pdf'
+res = requests.get(url)
+if res.status_code != 200: print('Failed to download PDF at:', url)
+fn = None
+with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+  tmp_file.write(res.content)
+  fn = tmp_file.name
 
-paper2 = db_models.Paper(
-  paper_url = url2,
-  title = "Rohan's dummy paper",
-  authors = "Rohan",
-  abstract = "Blah",
-  sections = "### Big Blah\n\nSmall Blah\n",
-)
-#db_utils.insert_paper(paper2)
+print('PDF downloaded at:', fn)
+end1 = time.monotonic()
+print(f'Time taken to download: {end1-start} secs')
+'''
+#breakpoint()
+fn = "/Users/rohan/Downloads/2401.04088.pdf"
 
-ref = db_models.References(
-  referred_by_paper_url = url,
-  referred_paper_url = url2
-)
+# Reasons for reference id not showing up:
+#  - Reference id is not being extracted during parse_references: *** NameError: name 'ref_id' is not defined
+pdf_dict = scipdf.parse_pdf_to_dict(fn)
 
-#db_utils.insert_reference(ref)
-
-ref.q1_answer = "This is answer to Q1"
-ref.q2_answer = "This is answer to Q2"
-ref.q3_answer = "This is answer to Q3"
-
-#db_utils.insert_reference_answers(ref)
-#print(db_utils.get_references_of_paper(url))
-
-import requests
 import json
+with open('parsed_paper_6.json', 'w') as f: json.dump(pdf_dict, f, indent=2)
 
-# Define the URL and headers
-embedding_url = 'https://fun-sentence-embedder-c8f3c4818216.herokuapp.com/embed_batch'
-headers = {
-    'accept': 'application/json',
-    'Content-Type': 'application/json'
-}
 
-# Define the data to be sent
-data = [
-    "this is string 1",
-    "this is string 2",
-    "this is string 3",
+paper = db_models.Paper(
+  fn,
+  pdf_dict['title'],
+  pdf_dict['authors'],
+  pdf_dict['abstract'],
+  get_section_text(pdf_dict['sections']),
+  json.dumps(pdf_dict['sections'])
+)
+
+ref_id_to_sec_heading = {}
+for sec in pdf_dict['sections']:
+  for ref_id in sec['publication_ref']:
+    if ref_id not in ref_id_to_sec_heading: ref_id_to_sec_heading[ref_id] = []
+    ref_id_to_sec_heading[ref_id].append(sec['heading'].strip())
+
+references = [
+  db_models.References(
+    referred_by_paper_url = fn,
+    reference_id = ref['ref_id'],
+    referred_sections = json.dumps(ref_id_to_sec_heading.get(ref['ref_id'], []))
+  )
+  for ref in pdf_dict['references']
 ]
 
-# Perform the POST request
-response = requests.post(embedding_url, headers=headers, data=json.dumps(data))
+# save to postgres
+# return {url: url, ref_ids: [ref_id...]}
 
-# Print the response
-embeddings = response.json()['embeddings']
-print(embeddings[0][:3])
 
-embds = []
-embds.append(db_models.EmbeddingsIn(
-  paper_url = url,
-  chunk = "this is string 1",
-  embedding = embeddings[0],
-))
-embds.append(db_models.EmbeddingsIn(
-  paper_url = url,
-  chunk = "this is string 2",
-  embedding = embeddings[1],
-))
+# to delete
+#os.remove(fn)
 
-#db_utils.insert_batch_embeddings(embds)
+end = time.monotonic()
+print(f'Time taken to download and parse a paper: {end - start} secs')
 
-print(db_utils.get_top_k_similar(embeddings[0], [url], 2))
-print(db_utils.get_top_k_similar(embeddings[2], [url], 1))
+
+
+
+
+
+# 3. SciPDF Parse it
+
+# 5. Get reference ids and for each id
+#  1. Download reference paper
+#  2. Use reference context and reference paper to answer 3 questions. (TODO: Handle long papers)
+#  3. Save to postgres

@@ -35,6 +35,74 @@ class Paper(BaseModel):
 # ===
 # Functions
 # ===
+import dataclasses
+import tempfile
+import requests
+import scipdf
+
+from typing import Optional
+
+import db_models
+import db_utils
+
+@dataclasses.dataclass
+class ProcessCurrPaperOut:
+  url: str
+  ref_ids: list[str]
+
+def _get_section_text(sections):
+  return '\n\n'.join([f"### {sec['heading'].strip()}\n\n{sec['text'].strip()}\n" for sec in sections])
+
+def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
+  # download pdf
+  if not url.endswith('.pdf'): url += '.pdf'
+  res = requests.get(url)
+  if res.status_code != 200: print('Failed to download PDF at:', url)
+  fn = None
+  with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+    tmp_file.write(res.content)
+    fn = tmp_file.name
+  print('PDF downloaded at:', fn)
+
+  # parse pdf
+  pdf_dict = scipdf.parse_pdf_to_dict(fn)
+  os.remove(fn) # delete tmp file post processing
+  paper = db_models.Paper(
+    url,
+    pdf_dict['title'],
+    pdf_dict['authors'],
+    pdf_dict['abstract'],
+    _get_section_text(pdf_dict['sections']),
+    json.dumps(pdf_dict['sections'])
+  )
+
+  # parse references
+  ref_id_to_sec_heading = {}
+  for sec in pdf_dict['sections']:
+    for ref_id in sec['publication_ref']:
+      if ref_id not in ref_id_to_sec_heading: ref_id_to_sec_heading[ref_id] = []
+      ref_id_to_sec_heading[ref_id].append(sec['heading'].strip())
+
+  references = [
+    db_models.References(
+      referred_by_paper_url = url,
+      reference_id = ref['ref_id'],
+      referred_sections = json.dumps(ref_id_to_sec_heading[ref['ref_id']])
+    )
+    for ref in pdf_dict['references']
+    if ref['ref_id'] in ref_id_to_sec_heading
+  ]
+
+  db_utils.insert_paper(paper)
+  db_utils.insert_batch_references(references)
+
+  # return {url: url, ref_ids: [ref_id...]}
+  return ProcessCurrPaperOut(url, [ref.reference_id for ref in references])
+
+  
+
+
+
 @functools.lru_cache(maxsize=128)
 def get_paper(url: str) -> Paper:
   """Get the paper title, abstract and content from a given URL."""

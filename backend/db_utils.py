@@ -3,7 +3,7 @@ import psycopg2
 
 from psycopg2 import sql
 
-from db_models import Paper, References, Embeddings, EmbeddingsIn, EmbeddingsOut
+import db_models
 
 # Connect to the database
 PG_USER = os.environ['PG_USER']
@@ -45,14 +45,15 @@ def create_tables(conn):
 
 # insertion
 @with_connection
-def insert_paper(conn, paper: Paper):
-  insert_papers_query = sql.SQL('''INSERT INTO papers (paper_url, title, authors, abstract, sections) VALUES (%s, %s, %s, %s, %s)''')
+def insert_paper(conn, paper: db_models.Paper) -> None:
+  insert_papers_query = sql.SQL('''INSERT INTO papers (paper_url, title, authors, abstract, sections_text, sections_json) VALUES (%s, %s, %s, %s, %s, %s)''')
   item = (
     str(paper.paper_url),
     paper.title,
     paper.authors,
     paper.abstract,
-    paper.sections,
+    paper.sections_text,
+    paper.sections_json,
   )
   with conn.cursor() as cur: cur.execute(insert_papers_query, item)
 
@@ -72,7 +73,7 @@ def insert_code(conn, paper_url: str, code: str):
 @with_connection
 def read_paper(conn, paper_url: str):
   read_paper_query = sql.SQL('''
-    SELECT paper_url, title, authors, abstract, sections, summary_markdown, code 
+    SELECT paper_url, title, authors, abstract, sections_text, sections_json, summary_markdown, code 
     FROM papers WHERE paper_url = %s
   ''')
   item = (paper_url, )
@@ -80,15 +81,7 @@ def read_paper(conn, paper_url: str):
     cur.execute(read_paper_query, item)
     paper = cur.fetchone()
 
-  return Paper(
-    paper_url = paper[0],
-    title = paper[1],
-    authors = paper[2],
-    abstract = paper[3],
-    sections = paper[4],
-    summary_markdown = paper[5],
-    code = paper[6],
-  )
+  return db_models.Paper(*paper)
 
 
 # ===
@@ -97,20 +90,25 @@ def read_paper(conn, paper_url: str):
 
 # insertion
 @with_connection
-def insert_reference(conn, ref: References):
-  insert_query = sql.SQL('''INSERT INTO references_table (referred_by_paper_url, referred_paper_url) VALUES (%s, %s)''')
-  item = (str(ref.referred_by_paper_url), str(ref.referred_paper_url))
-  with conn.cursor() as cur: cur.execute(insert_query, item)
+def insert_batch_references(conn, references: list[db_models.References]) -> None:
+  insert_query = sql.SQL('''INSERT INTO references_table (referred_by_paper_url, reference_id, referred_sections) VALUES (%s, %s, %s)''')
+  items = [
+    (ref.referred_by_paper_url, ref.reference_id, ref.referred_sections)
+    for ref in references
+  ]
+  with conn.cursor() as cur: cur.executemany(insert_query, items)
+
 
 @with_connection
-def insert_reference_answers(conn, ref: References):
+def insert_reference_info(conn, ref: db_models.References):
   update_query = sql.SQL('''
     UPDATE references_table 
-    SET q1_answer = %s, q2_answer = %s, q3_answer = %s 
-    WHERE referred_by_paper_url = %s AND referred_paper_url = %s
+    SET referred_paper_url = %s, q1_answer = %s, q2_answer = %s, q3_answer = %s 
+    WHERE referred_by_paper_url = %s AND reference_id = %s
   ''')
-  item = [ref.q1_answer, ref.q2_answer, ref.q3_answer, str(ref.referred_by_paper_url), str(ref.referred_paper_url)]
+  item = [ref.referred_paper_url, ref.q1_answer, ref.q2_answer, ref.q3_answer, ref.referred_by_paper_url, ref.reference_id]
   with conn.cursor() as cur: cur.execute(update_query, item)
+
 
 @with_connection
 def get_references_of_paper(conn, referred_by_paper_url: str):
@@ -126,7 +124,7 @@ def get_references_of_paper(conn, referred_by_paper_url: str):
 
   refs = []
   for res in result:
-    _ = References(
+    _ = db_models.References(
       referred_by_paper_url = res[0],
       referred_paper_url = res[1],
       q1_answer = res[2],
@@ -142,13 +140,13 @@ def get_references_of_paper(conn, referred_by_paper_url: str):
 # Embeddings
 # ===
 @with_connection
-def insert_batch_embeddings(conn, embds: list[EmbeddingsIn]):
+def insert_batch_embeddings(conn, embds: list[db_models.EmbeddingsIn]):
   insert_query = sql.SQL('''INSERT INTO embeddings_table (paper_url, chunk, embedding) VALUES (%s, %s, %s)''')
   items = [(str(x.paper_url), x.chunk, x.embedding) for x in embds]
   with conn.cursor() as cur: cur.executemany(insert_query, items)
 
 @with_connection
-def get_top_k_similar(conn, query_embedding: list[float], paper_urls: list[str], k: int) -> list[EmbeddingsOut]:
+def get_top_k_similar(conn, query_embedding: list[float], paper_urls: list[str], k: int) -> list[db_models.EmbeddingsOut]:
   search_query = sql.SQL('''
     SELECT paper_url, chunk, (1 - (embedding <=> VECTOR(%s::VECTOR(384)))) as sim_score
     FROM embeddings_table
@@ -161,7 +159,7 @@ def get_top_k_similar(conn, query_embedding: list[float], paper_urls: list[str],
     cur.execute(search_query, item)
     results = cur.fetchall()
 
-  return [EmbeddingsOut(paper_url=res[0], chunk=res[1], sim_score=res[2]) for res in results]
+  return [db_models.EmbeddingsOut(paper_url=res[0], chunk=res[1], sim_score=res[2]) for res in results]
 
 
 
