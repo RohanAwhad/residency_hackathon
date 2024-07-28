@@ -1,9 +1,10 @@
 import os
+import json
 import psycopg2
-
 from psycopg2 import sql
+from typing import Optional
 
-import db_models
+import data_models
 
 # Connect to the database
 PG_USER = os.environ['PG_USER']
@@ -45,7 +46,7 @@ def create_tables(conn):
 
 # insertion
 @with_connection
-def insert_paper(conn, paper: db_models.Paper) -> None:
+def insert_paper(conn, paper: data_models.Paper) -> None:
   insert_papers_query = sql.SQL('''INSERT INTO papers (paper_url, title, authors, abstract, sections_text, sections_json) VALUES (%s, %s, %s, %s, %s, %s)''')
   item = (
     str(paper.paper_url),
@@ -81,7 +82,22 @@ def read_paper(conn, paper_url: str):
     cur.execute(read_paper_query, item)
     paper = cur.fetchone()
 
-  return db_models.Paper(*paper)
+  return data_models.Paper(*paper)
+
+# search paper by title
+
+@with_connection
+def search_paper_by_title(conn, query_title: str) -> Optional[data_models.SearchResult]:
+  search_query = sql.SQL('SELECT paper_url, title, authors FROM papers WHERE fts @@ TO_TSQUERY(%s)')
+  query_title = '+'.join(query_title.split(' '))
+  item = (query_title, )
+  with conn.cursor() as cur:
+    cur.execute(search_query, item)
+    result = cur.fetchone()
+
+  if result: return data_models.SearchResult(*result)
+  return None
+
 
 
 # ===
@@ -90,7 +106,7 @@ def read_paper(conn, paper_url: str):
 
 # insertion
 @with_connection
-def insert_batch_references(conn, references: list[db_models.References]) -> None:
+def insert_batch_references(conn, references: list[data_models.References]) -> None:
   keys_to_add = ('referred_by_paper_url', 'reference_id', 'referred_sections', 'title', 'authors', 'journal', 'year')
   insert_query = f'INSERT INTO references_table ({", ".join(keys_to_add)}) VALUES ({", ".join(["%s"] * len(keys_to_add))})'
 
@@ -102,13 +118,13 @@ def insert_batch_references(conn, references: list[db_models.References]) -> Non
 
 
 @with_connection
-def insert_reference_info(conn, ref: db_models.References):
+def insert_reference_info(conn, referred_by_url: str, ref_id: str, ref_url: str, q1_ans: str, q2_ans: str, q3_ans: str):
   update_query = sql.SQL('''
     UPDATE references_table 
     SET referred_paper_url = %s, q1_answer = %s, q2_answer = %s, q3_answer = %s 
     WHERE referred_by_paper_url = %s AND reference_id = %s
   ''')
-  item = [ref.referred_paper_url, ref.q1_answer, ref.q2_answer, ref.q3_answer, ref.referred_by_paper_url, ref.reference_id]
+  item = [ref_url, q1_ans, q2_ans, q3_ans, referred_by_url, ref_id]
   with conn.cursor() as cur: cur.execute(update_query, item)
 
 
@@ -126,7 +142,7 @@ def get_references_of_paper(conn, referred_by_paper_url: str):
 
   refs = []
   for res in result:
-    _ = db_models.References(
+    _ = data_models.References(
       referred_by_paper_url = res[0],
       referred_paper_url = res[1],
       q1_answer = res[2],
@@ -137,20 +153,10 @@ def get_references_of_paper(conn, referred_by_paper_url: str):
   return refs
 
 
-import dataclasses
-from typing import Optional
-
-@dataclasses.dataclass
-class RefInfoOut:
-  title: str
-  authors: list[str]
-  journal: Optional[str]
-  year: Optional[int]
-
 @with_connection
-def get_reference_info_for_searching(conn, referred_by_paper_url, reference_id: str) -> RefInfoOut:
+def get_reference_info_for_searching(conn, referred_by_paper_url, reference_id: str) -> data_models.RefInfoOut:
   read_query = sql.SQL('''
-    SELECT title, authors, journal, year
+    SELECT title, authors, journal, year, referred_sections
     FROM references_table
     WHERE
       referred_by_paper_url = %s
@@ -162,26 +168,43 @@ def get_reference_info_for_searching(conn, referred_by_paper_url, reference_id: 
     cur.execute(read_query, item)
     res = cur.fetchone()
 
-  return RefInfoOut(
+  return data_models.RefInfoOut(
     title=res[0],
     authors = [x.strip() for x in res[1].split('; ') if x.strip()] if res[1] else None,
     journal = res[2] if res[2] else None,
-    year = res[3] if res[3] else None
+    year = res[3] if res[3] else None,
+    referred_sections=json.loads(res[4]),
   )
     
+
+@with_connection
+def get_processed_reference(conn, paper_url: str, ref_id: str) -> Optional[data_models.ProcessRefOut]:
+  read_query = sql.SQL('''
+    SELECT referred_paper_url, q1_answer, q2_answer, q3_answer
+    FROM references_table
+    WHERE referred_by_paper_url = %s AND reference_id = %s
+    ;
+  ''')
+  item = (paper_url, ref_id)
+  with conn.cursor() as cur:
+    cur.execute(read_query, item)
+    result = cur.fetchone()
+  if not result or None in result: return None
+  return data_models.ProcessRefOut(*result)
+
 
 
 # ===
 # Embeddings
 # ===
 @with_connection
-def insert_batch_embeddings(conn, embds: list[db_models.EmbeddingsIn]):
+def insert_batch_embeddings(conn, embds: list[data_models.EmbeddingsIn]):
   insert_query = sql.SQL('''INSERT INTO embeddings_table (paper_url, chunk, embedding) VALUES (%s, %s, %s)''')
   items = [(str(x.paper_url), x.chunk, x.embedding) for x in embds]
   with conn.cursor() as cur: cur.executemany(insert_query, items)
 
 @with_connection
-def get_top_k_similar(conn, query_embedding: list[float], paper_urls: list[str], k: int) -> list[db_models.EmbeddingsOut]:
+def get_top_k_similar(conn, query_embedding: list[float], paper_urls: list[str], k: int) -> list[data_models.EmbeddingsOut]:
   search_query = sql.SQL('''
     SELECT paper_url, chunk, (1 - (embedding <=> VECTOR(%s::VECTOR(384)))) as sim_score
     FROM embeddings_table
@@ -194,7 +217,7 @@ def get_top_k_similar(conn, query_embedding: list[float], paper_urls: list[str],
     cur.execute(search_query, item)
     results = cur.fetchall()
 
-  return [db_models.EmbeddingsOut(paper_url=res[0], chunk=res[1], sim_score=res[2]) for res in results]
+  return [data_models.EmbeddingsOut(paper_url=res[0], chunk=res[1], sim_score=res[2]) for res in results]
 
 
 

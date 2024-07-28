@@ -1,88 +1,133 @@
 import os
+import json
 import requests
-import scipdf
-import tempfile
 
 import db_utils
-import db_models
+import data_models
 import utils
 
 import time
 start = time.monotonic()
+
 url = "https://arxiv.org/pdf/1809.05724"
-res = utils.process_curr_paper(url)
-print(res)
+ref_id = 'b19'
+print(utils.process_reference(url, ref_id))
 end = time.monotonic()
-print(f'Time Taken to process curr paper: {end - start} secs')
+print(f'Total time taken: {end-start} secs')
 exit(0)
-'''
 
-# Download the paper
+
 if not url.endswith('.pdf'): url += '.pdf'
-res = requests.get(url)
-if res.status_code != 200: print('Failed to download PDF at:', url)
-fn = None
-with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-  tmp_file.write(res.content)
-  fn = tmp_file.name
 
-print('PDF downloaded at:', fn)
-end1 = time.monotonic()
-print(f'Time taken to download: {end1-start} secs')
+sections_json = json.loads(db_utils.read_paper(url).sections_json)
+sections_json = {res['heading']: res['text'] for res in sections_json}
+
+
+ref_id = 'b24'
+
+info: data_models.RefInfoOut = db_utils.get_reference_info_for_searching(url, ref_id)
+curr_paper_text = '\n\n'.join([
+  f'### Section: {h}\n\n{sections_json[h].strip()}\n'
+  for h in info.referred_sections
+])
+
+print(curr_paper_text)
+
+# Brave search
+brave_search_url = "https://api.search.brave.com/res/v1/web/search"
+headers = {
+  "Accept": "application/json",
+  "Accept-Encoding": "gzip",
+  "X-Subscription-Token": os.environ['BRAVE_SEARCH_AI_API_KEY']
+}
+query = f'filetype:pdf "{info.title.strip().lower()}"'
+params = {
+  "q": query,
+  "count": 20,  # Brave Search API allows max 20 results per request
+}
+
 '''
-#breakpoint()
-fn = "/Users/rohan/Downloads/2401.04088.pdf"
+#response = requests.get(brave_search_url, headers=headers, params=params)
+if response.status_code == 200:
+  results = response.json()['web']['results']
+  if len(results):
+    ret = utils.process_curr_paper(results[0]['url'])
+    print('Reference Paper processed:', ret)
+'''
 
-# Reasons for reference id not showing up:
-#  - Reference id is not being extracted during parse_references: *** NameError: name 'ref_id' is not defined
-pdf_dict = scipdf.parse_pdf_to_dict(fn)
-
-import json
-with open('parsed_paper_6.json', 'w') as f: json.dump(pdf_dict, f, indent=2)
+ref_url = "https://arxiv.org/pdf/1512.08849.pdf"
+ref = db_utils.read_paper(ref_url)
 
 
-paper = db_models.Paper(
-  fn,
-  pdf_dict['title'],
-  pdf_dict['authors'],
-  pdf_dict['abstract'],
-  get_section_text(pdf_dict['sections']),
-  json.dumps(pdf_dict['sections'])
+questions = ['''How does this reference support the current paper's hypothesis or main argument?
+What you should focus on while answering: Understanding the role of the reference in supporting the main points of the research paper is crucial. Does it provide foundational theories, corroborate findings, or offer contrasting views that are addressed within the paper?''',
+             '''What is the significance of the referenced work in the field, and how current is it?
+What you should focus on while answering: Evaluating the relevance and impact of the referenced work helps in understanding its importance. Consider the publication date, the reputation of the authors, and how frequently the work has been cited by other scholars.''',
+             '''What methodologies or key findings from the referenced work are relevant to the current study?
+What you should focus on while answering : Identifying specific methodologies or findings that are referenced can shed light on the research design, analysis, and conclusions of the current paper. It helps in understanding how the referenced work influences or relates to the study at hand.''']
+
+prompt = f'''
+You are a helpful assistant who answers the given questions based on the main paper and the reference paper text.
+You are given the important points from the main paper that the user is reading and the important points from a reference paper that is mentioned in the main paper.
+
+You need to understand how the reference is related to the main paper. and answer the following questions. Please answer in a concise manner and only based on the given text.
+
+Your answer needs to be short and to the point.
+
+---
+
+# Reference Paper:
+
+## Title: {ref.title}
+
+## Paper
+
+{ref.sections_text}
+
+---
+
+# Current Paper
+
+{curr_paper_text}
+
+---
+
+Question 1. {questions[0]}
+Question 2. {questions[1]}
+Question 3. {questions[2]}
+
+Give the output in the following format as json within three backticks (```json{{}}```), only output the following:
+{{'Question 1': '<answer_1>', 'Question 2': '<answer_2>', 'Question 3': '<answer_3>'}}
+'''
+
+import openai
+client = openai.OpenAI(api_key=os.environ['TOGETHER_API_KEY'], base_url='https://api.together.xyz/v1')
+res = client.chat.completions.create(
+  model='meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+  messages=[{'role': 'user', 'content': prompt}],
+  max_tokens=512,
 )
+print(res)
+import re
+ptrn = re.compile(r'```json(.*?)```', re.DOTALL)
+match = re.search(ptrn, res.choices[0].message.content)
+if not match: print('Failed to generate JSON within triple backticks')
+else:
+  ans = json.loads(match.group(1))
+  print(json.dumps(ans, indent=2))
 
-ref_id_to_sec_heading = {}
-for sec in pdf_dict['sections']:
-  for ref_id in sec['publication_ref']:
-    if ref_id not in ref_id_to_sec_heading: ref_id_to_sec_heading[ref_id] = []
-    ref_id_to_sec_heading[ref_id].append(sec['heading'].strip())
-
-references = [
-  db_models.References(
-    referred_by_paper_url = fn,
-    reference_id = ref['ref_id'],
-    referred_sections = json.dumps(ref_id_to_sec_heading.get(ref['ref_id'], []))
-  )
-  for ref in pdf_dict['references']
-]
-
-# save to postgres
-# return {url: url, ref_ids: [ref_id...]}
-
-
-# to delete
-#os.remove(fn)
 
 end = time.monotonic()
-print(f'Time taken to download and parse a paper: {end - start} secs')
+print(f'Total time taken: {end-start} secs')
 
 
-
-
-
-
-# 3. SciPDF Parse it
-
-# 5. Get reference ids and for each id
-#  1. Download reference paper
-#  2. Use reference context and reference paper to answer 3 questions. (TODO: Handle long papers)
-#  3. Save to postgres
+'''
+the flow of references:
+- get paper_url and ref_id
+- get the reference paper info from db
+- get the url for the paper from web search or db search
+- download the paper and process it using the process_curr_paper funct
+- get the sections of the text from the original paper where this paper is referred
+- Prompt the LLM to start generating answers for questions based on the context provided
+- Stream the output back to the client, with appropriate formatting based on which question is answered and all
+'''

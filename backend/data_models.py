@@ -33,6 +33,14 @@ class References:
   q2_answer: Optional[str] = None
   q3_answer: Optional[str] = None
 
+@dataclasses.dataclass
+class RefInfoOut:
+  title: str
+  referred_sections: str
+  authors: Optional[list[str]]
+  journal: Optional[str]
+  year: Optional[int]
+
 
 
 @dataclasses.dataclass
@@ -48,3 +56,18 @@ class EmbeddingsIn(Embeddings):
 class EmbeddingsOut(Embeddings):
   sim_score: float
 
+
+# Search paper by title
+@dataclasses.dataclass
+class SearchResult:
+  paper_url: str
+  title: str
+  authors: str
+
+# Processed Reference Output
+@dataclasses.dataclass
+class ProcessRefOut:
+  ref_url: str
+  q1_ans: str
+  q2_ans: str
+  q3_ans: str

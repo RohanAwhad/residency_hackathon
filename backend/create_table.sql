@@ -8,8 +8,12 @@ CREATE TABLE IF NOT EXISTS papers (
   sections_text TEXT, --json str
   sections_json TEXT,
   summary_markdown TEXT,
-  code TEXT
+  code TEXT,
+  fts TSVECTOR GENERATED ALWAYS AS (TSVECTOR('english', TRIM(LOWER(title))))
 );
+
+CREATE INDEX title_fts ON papers USING GIN (fts);
+
 
 CREATE TABLE IF NOT EXISTS references_table (
   id SERIAL PRIMARY KEY,
