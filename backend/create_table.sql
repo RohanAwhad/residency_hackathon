@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS references_table (
   title TEXT NOT NULL,
   authors TEXT,
   journal TEXT,
-  year INTEGER,
+  year TEXT,
 
   referred_paper_url TEXT,
   q1_answer TEXT,

@@ -1,6 +1,8 @@
 import os
 import json
 import psycopg2
+import re
+
 from psycopg2 import sql
 from typing import Optional
 
@@ -40,13 +42,38 @@ def create_tables(conn):
   cur.close()
 
 
+@with_connection
+def insert_paper_n_references(conn, paper: data_models.Papers, references: list[data_models.References]) -> None:
+  insert_papers_query = sql.SQL('''INSERT INTO papers (paper_url, title, authors, abstract, sections_text, sections_json) VALUES (%s, %s, %s, %s, %s, %s)''')
+  paper_item = (
+    str(paper.paper_url),
+    paper.title,
+    paper.authors,
+    paper.abstract,
+    paper.sections_text,
+    paper.sections_json,
+  )
+
+  # references query
+  keys_to_add = ('referred_by_paper_url', 'reference_id', 'referred_sections', 'title', 'authors', 'journal', 'year')
+  insert_references_query = f'INSERT INTO references_table ({", ".join(keys_to_add)}) VALUES ({", ".join(["%s"] * len(keys_to_add))})'
+  reference_items = [
+    (ref.referred_by_paper_url, ref.reference_id, ref.referred_sections, ref.title, ref.authors, ref.journal, ref.year)
+    for ref in references
+  ]
+
+  # execute
+  with conn.cursor() as cur:
+    cur.execute(insert_papers_query, paper_item)
+    cur.executemany(sql.SQL(insert_references_query), reference_items)
+
 # ===
 # Papers Table
 # ===
 
 # insertion
 @with_connection
-def insert_paper(conn, paper: data_models.Paper) -> None:
+def insert_paper(conn, paper: data_models.Papers) -> None:
   insert_papers_query = sql.SQL('''INSERT INTO papers (paper_url, title, authors, abstract, sections_text, sections_json) VALUES (%s, %s, %s, %s, %s, %s)''')
   item = (
     str(paper.paper_url),
@@ -82,13 +109,14 @@ def read_paper(conn, paper_url: str):
     cur.execute(read_paper_query, item)
     paper = cur.fetchone()
 
-  return data_models.Paper(*paper)
+  return data_models.Papers(*paper)
 
 # search paper by title
 
 @with_connection
 def search_paper_by_title(conn, query_title: str) -> Optional[data_models.SearchResult]:
   search_query = sql.SQL('SELECT paper_url, title, authors FROM papers WHERE fts @@ TO_TSQUERY(%s)')
+  query_title = re.sub(r'\W+', '', query_title)
   query_title = '+'.join(query_title.split(' '))
   item = (query_title, )
   with conn.cursor() as cur:

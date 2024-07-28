@@ -1,7 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 from typing import Optional
 
 import utils
@@ -18,6 +18,20 @@ app.add_middleware(
 @app.get("/")
 def read_root():
   return {"Hello": "World"}
+
+# process paper
+@app.get('/process_paper')
+def process_paper(paper_url: str):
+  ret = utils.process_curr_paper(paper_url)
+  if ret: return ret
+  return HTTPException(status_code=500, detail="Couldn't process current paper")
+
+# process reference
+@app.get('/process_reference')
+def process_reference(paper_url: str, ref_id: str):
+  ret = utils.process_reference(paper_url, ref_id)
+  if ret: return ret
+  return HTTPException(status_code=500, detail="Couldn't generate information about this reference")
 
 class StreamOut(BaseModel):
   chunk: str

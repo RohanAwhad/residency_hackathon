@@ -24,14 +24,6 @@ genai.configure(api_key=GEMINI_API_KEY)
 gemini_flash = "gemini-1.5-flash"
 gemini_pro = "gemini-1.5-pro"
 
-# ===
-# Define the Paper class
-# ===
-class Paper(BaseModel):
-  title: str
-  abstract: str
-  content: str
-
 
 # ===
 # Functions
@@ -55,8 +47,10 @@ def _get_section_text(sections):
   return '\n\n'.join([f"### {sec['heading'].strip()}\n\n{sec['text'].strip()}\n" for sec in sections])
 
 def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
-  # download pdf
   if not url.endswith('.pdf'): url += '.pdf'
+  # check if already_processed
+
+  # download pdf
   res = requests.get(url)
   if res.status_code != 200: print('Failed to download PDF at:', url)
   fn = None
@@ -68,7 +62,7 @@ def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
   # parse pdf
   pdf_dict = scipdf.parse_pdf_to_dict(fn)
   os.remove(fn) # delete tmp file post processing
-  paper = data_models.Paper(
+  paper = data_models.Papers(
     url,
     pdf_dict['title'],
     pdf_dict['authors'],
@@ -98,8 +92,7 @@ def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
     if ref['ref_id'] in ref_id_to_sec_heading
   ]
 
-  db_utils.insert_paper(paper)
-  db_utils.insert_batch_references(references)
+  db_utils.insert_paper_n_references(paper, references)
 
   return ProcessCurrPaperOut(url, [ref.reference_id for ref in references])
 
@@ -147,6 +140,39 @@ Give the output in the following format as json within three backticks (```json{
 {{"Question 1": "<answer_1>", "Question 2": "<answer_2>", "Question 3": "<answer_3>"}}
 '''
 
+def search_brave(query: str, count: int):
+  # web search for reference
+  brave_search_url = "https://api.search.brave.com/res/v1/web/search"
+  headers = {
+    "Accept": "application/json",
+    "Accept-Encoding": "gzip",
+    "X-Subscription-Token": os.environ['BRAVE_SEARCH_AI_API_KEY']
+  }
+  params = {
+    "q": query,
+    "count": count,  # Brave Search API allows max 20 results per request
+  }
+  response = requests.get(brave_search_url, headers=headers, params=params)
+  if response.status_code != 200:
+    print('Brave search api gave non-200 response:', response.status_code)
+    return None
+  response = response.json()
+  if 'web' not in response or 'results' not in response['web']:
+    print('Brave search didn\'t return results\n', response)
+    return None
+  return response
+
+def get_pdf_url_from_search_results(response):
+  for res in response['web']['results']:
+    res_url = res['url']
+    if 'arxiv.org' in res_url: return re.sub('arxiv.org/abs', 'arxiv.org/pdf', res_url)
+    if 'aclanthology.org' in res_url:
+      if res_url.endswith('.pdf'): return res_url
+      else:
+        if res_url[-1] == '/': return res_url[:-1] + '.pdf'
+        return res_url + '.pdf'
+
+
 
 def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.ProcessRefOut]:
   paper_url = "https://arxiv.org/pdf/1809.05724"
@@ -162,29 +188,20 @@ def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.Proce
   # search db for reference
   paper = db_utils.search_paper_by_title(info.title.strip().lower())
   if not paper:
-    # web search for reference
-    brave_search_url = "https://api.search.brave.com/res/v1/web/search"
-    headers = {
-      "Accept": "application/json",
-      "Accept-Encoding": "gzip",
-      "X-Subscription-Token": os.environ['BRAVE_SEARCH_AI_API_KEY']
-    }
     query = f'filetype:pdf "{info.title.strip().lower()}"'
-    params = {
-      "q": query,
-      "count": 3,  # Brave Search API allows max 20 results per request
-    }
-    response = requests.get(brave_search_url, headers=headers, params=params)
-    if response.status_code != 200:
-      print('Brave search api gave non-200 response:', response.status_code)
-      return None
+    response = search_brave(query, 1)
+    if not response:
+      query = f'"{info.title.strip().lower()}"'
+      response = search_brave(query, count=10)
+      if not response: return None
+      else:
+        ref_url = get_pdf_url_from_search_results(response)
+        if not ref_url:
+          print('Unable to get paper url from brave search')
+          return None
+    else:
+      ref_url = response['web']['results'][0]['url']
 
-    response = response.json()
-    if 'web' not in response or 'results' not in response['web']:
-      print('Brave search didn\'t return results\n', response)
-      return None
-
-    ref_url = response['web']['results'][0]['url']
     ref_obj = process_curr_paper(ref_url)
     if not ref_obj:
       print('Error while processing reference paper')
@@ -247,6 +264,10 @@ def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.Proce
   
 
 
+class Paper(BaseModel):
+  title: str
+  abstract: str
+  content: str
 
 @functools.lru_cache(maxsize=128)
 def get_paper(url: str) -> Paper:

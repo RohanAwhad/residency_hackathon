@@ -2,7 +2,7 @@ import dataclasses
 from typing import Optional, List, Dict
 
 @dataclasses.dataclass
-class Paper:
+class Papers:
   paper_url: str  # primary key
   title: str
   authors: str  # scipdf gives authors in ';' separated string
