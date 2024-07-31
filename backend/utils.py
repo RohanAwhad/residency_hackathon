@@ -48,7 +48,14 @@ def _get_section_text(sections):
 
 def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
   if not url.endswith('.pdf'): url += '.pdf'
+
   # check if already_processed
+  paper = db_utils.read_paper(url)
+  if paper is not None:
+    ref_ids = db_utils.get_reference_ids_of_paper(url)
+    if ref_ids is not None:
+      return ProcessCurrPaperOut(url, ref_ids)
+    
 
   # download pdf
   res = requests.get(url)
@@ -71,6 +78,24 @@ def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
     json.dumps(pdf_dict['sections'])
   )
 
+  chunks = create_chunks(pdf_dict['abstract']) if pdf_dict['abstract'] else []
+  for sec in pdf_dict['sections']:
+    if sec['text']: chunks.extend(create_chunks(sec['text']))
+
+  # TODO (rohan): create embeddings of those chunks
+  embeddings = None
+  if len(chunks) == 0:
+    print(f'Chunking Failed for paper with url: {url}!')
+  else:
+    embeddings = embed(chunks, 'sentence')
+    if embeddings is None:
+      print('Chunk embeddings failed')
+    else:
+      embeddings = [
+        data_models.EmbeddingsIn(paper_url=url, chunk=c, embedding=e)
+        for c, e in zip(chunks, embeddings)
+      ]
+
   # parse references
   ref_id_to_sec_heading = {}
   for sec in pdf_dict['sections']:
@@ -92,9 +117,61 @@ def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
     if ref['ref_id'] in ref_id_to_sec_heading
   ]
 
-  db_utils.insert_paper_n_references(paper, references)
+  # I want to have this as a transaction
+  if embeddings is None: db_utils.insert_paper_n_references(paper, references)
+  else: db_utils.insert_paper_ref_embeddings(paper, references, embeddings)
 
   return ProcessCurrPaperOut(url, [ref.reference_id for ref in references])
+
+
+# create chunks
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+def create_chunks(text: str) -> list[str]:
+  r_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1536,
+    chunk_overlap=256,
+  )
+  return r_splitter.split_text(text)
+
+
+# Embed chunks
+import os
+import torch
+from transformers import AutoTokenizer, AutoModel
+
+@functools.lru_cache()
+def _load_model():
+  model_ckpt = os.environ['EMBEDDING_MODEL_DIR']
+  tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
+  model = AutoModel.from_pretrained(model_ckpt)
+  model.eval()
+  return tokenizer, model
+
+
+EMBEDDING_BATCH_SIZE = 8
+@torch.no_grad()
+def embed(chunks: list[str], mode: str) -> Optional[list[list[float]]]:
+  if not mode in ['sentence', 'query']:
+    print('Mode has to either be "sentence" or "query", but got', mode)
+    return None
+
+  tokenizer, model = _load_model()
+  ret = []
+  for i in range(0, len(chunks), EMBEDDING_BATCH_SIZE):
+    batch = chunks[i: i+EMBEDDING_BATCH_SIZE]
+    inp = tokenizer(batch, return_tensors='pt', padding=True, truncation=True)
+    output = model(**inp)
+
+    if mode == "query":
+      vectors = output.last_hidden_state * inp["attention_mask"].unsqueeze(2)
+      vectors = vectors.sum(dim=1) / inp["attention_mask"].sum(dim=-1).view(-1, 1)
+    else:
+      vectors = output.last_hidden_state[:, 0, :]
+
+    ret.extend(vectors.numpy().tolist())
+  return ret
+
+
 
 
 # process reference
@@ -175,7 +252,6 @@ def get_pdf_url_from_search_results(response):
 
 
 def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.ProcessRefOut]:
-  paper_url = "https://arxiv.org/pdf/1809.05724"
   if not paper_url.endswith('.pdf'): paper_url += '.pdf'
 
   # check if already processed

@@ -67,6 +67,38 @@ def insert_paper_n_references(conn, paper: data_models.Papers, references: list[
     cur.execute(insert_papers_query, paper_item)
     cur.executemany(sql.SQL(insert_references_query), reference_items)
 
+
+@with_connection
+def insert_paper_ref_embeddings(conn, paper: data_models.Papers, references: list[data_models.References], embeddings: list[data_models.EmbeddingsIn]) -> None:
+  # papers query
+  insert_papers_query = sql.SQL('''INSERT INTO papers (paper_url, title, authors, abstract, sections_text, sections_json) VALUES (%s, %s, %s, %s, %s, %s)''')
+  paper_item = (
+    str(paper.paper_url),
+    paper.title,
+    paper.authors,
+    paper.abstract,
+    paper.sections_text,
+    paper.sections_json,
+  )
+
+  # references query
+  keys_to_add = ('referred_by_paper_url', 'reference_id', 'referred_sections', 'title', 'authors', 'journal', 'year')
+  insert_references_query = f'INSERT INTO references_table ({", ".join(keys_to_add)}) VALUES ({", ".join(["%s"] * len(keys_to_add))})'
+  reference_items = [
+    (ref.referred_by_paper_url, ref.reference_id, ref.referred_sections, ref.title, ref.authors, ref.journal, ref.year)
+    for ref in references
+  ]
+
+  # embeddings query
+  insert_embeddings_query = sql.SQL('''INSERT INTO embeddings_table (paper_url, chunk, embedding) VALUES (%s, %s, %s)''')
+  embedding_items = [(str(x.paper_url), x.chunk, x.embedding) for x in embeddings]
+
+  # execute
+  with conn.cursor() as cur:
+    cur.execute(insert_papers_query, paper_item)
+    cur.executemany(sql.SQL(insert_references_query), reference_items)
+    cur.executemany(insert_embeddings_query, embedding_items)
+
 # ===
 # Papers Table
 # ===
@@ -108,8 +140,8 @@ def read_paper(conn, paper_url: str):
   with conn.cursor() as cur:
     cur.execute(read_paper_query, item)
     paper = cur.fetchone()
-
-  return data_models.Papers(*paper)
+  if paper: return data_models.Papers(*paper)
+  return None
 
 # search paper by title
 
@@ -157,9 +189,9 @@ def insert_reference_info(conn, referred_by_url: str, ref_id: str, ref_url: str,
 
 
 @with_connection
-def get_references_of_paper(conn, referred_by_paper_url: str):
+def get_reference_ids_of_paper(conn, referred_by_paper_url: str):
   read_query = sql.SQL('''
-    SELECT referred_by_paper_url, referred_paper_url, q1_answer, q2_answer, q3_answer
+    SELECT reference_ids
     FROM references_table
     WHERE referred_by_paper_url = %s
   ''')
@@ -168,17 +200,8 @@ def get_references_of_paper(conn, referred_by_paper_url: str):
     cur.execute(read_query, item)
     result = cur.fetchall()
 
-  refs = []
-  for res in result:
-    _ = data_models.References(
-      referred_by_paper_url = res[0],
-      referred_paper_url = res[1],
-      q1_answer = res[2],
-      q2_answer = res[3],
-      q3_answer = res[4],
-    )
-    refs.append(_)
-  return refs
+  if result is None or len(result) == 0: return None
+  return result
 
 
 @with_connection
