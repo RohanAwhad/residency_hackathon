@@ -71,3 +71,10 @@ class ProcessRefOut:
   q1_ans: str
   q2_ans: str
   q3_ans: str
+
+
+@dataclasses.dataclass
+class Message:
+  role: str
+  content: str
+

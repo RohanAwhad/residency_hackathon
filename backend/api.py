@@ -1,9 +1,12 @@
+from requests import status_codes
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 from typing import Optional
 
+import data_models
+import db_utils
 import utils
 
 app = FastAPI()
@@ -32,6 +35,36 @@ def process_reference(paper_url: str, ref_id: str):
   ret = utils.process_reference(paper_url, ref_id)
   if ret: return ret
   return HTTPException(status_code=500, detail="Couldn't generate information about this reference")
+
+# chat
+class Message(BaseModel):
+  role: str
+  content: str
+
+class ChatReqIn(BaseModel):
+  paper_url: HttpUrl
+  messages: list[data_models.Message]
+
+@app.post('/chat/response')
+def generate_chat_response(inp: ChatReqIn):
+  query = inp.messages[-1].content
+  query_embeddings = utils.embed([query], mode='query')
+  if query_embeddings is None: return HTTPException(status_code=500, detail='Couldn\'t generate embeddings from user message')
+  query_embeddings = query_embeddings[0]
+
+  paper_url = str(inp.paper_url)
+  if not paper_url.endswith('.pdf'): paper_url += '.pdf'
+  ref_urls = db_utils.get_reference_urls(paper_url)
+  if ref_urls is None:
+    print('Couldn\'t find any reference paper urls')
+    ref_urls = []
+
+  ref_urls.append(paper_url)
+  context = db_utils.get_top_k_similar(query_embeddings, ref_urls, 3)
+  if context is None: print('Couldn\'t retrieve context')
+  response = utils.generate_chat_response(context, inp.messages)
+  return response
+
 
 class StreamOut(BaseModel):
   chunk: str
@@ -71,5 +104,8 @@ def generate_code(inp: CodeReqIn):
 
 
 if __name__ == '__main__':
+  msgs = [data_models.Message('user', 'Whats the implementation model?')]
+  print(generate_chat_response(ChatReqIn(paper_url='https://arxiv.org/pdf/2407.02049.pdf', messages=msgs)))
+  exit(0)
   import uvicorn
   uvicorn.run(app, host='localhost', port=8080)

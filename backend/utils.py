@@ -172,6 +172,26 @@ def embed(chunks: list[str], mode: str) -> Optional[list[list[float]]]:
   return ret
 
 
+# chat
+def generate_chat_response(context: Optional[str], messages: list[data_models.Message]) -> Optional[str]:
+  sys_prompt = '''You are an helpful assistant who helps user to answer their queries related to a research paper in a conversational style.
+    
+    You will be answering the question based on the previous conversation history and the context provided. 
+    If the question is not relevant to the conversation history, please answer only based on the context.
+    If the question is not relevant to the context and you are unable to answer the question, please just say "I don't know the answer".
+  pass
+  '''
+  query = messages[-1].content
+  modified_msg_prompt = f'### Context\n\n{context}\n\n---\n\nQuery: {query}'
+  messages[-1].content = modified_msg_prompt
+  messages = [data_models.Message('system', sys_prompt), ] + messages
+
+  response = client.chat.completions.create(
+    model='meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+    messages=[x.__dict__ for x in messages],
+    max_tokens=1024,
+  )
+  return response.choices[0].message.content
 
 
 # process reference

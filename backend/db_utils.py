@@ -244,6 +244,14 @@ def get_processed_reference(conn, paper_url: str, ref_id: str) -> Optional[data_
   return data_models.ProcessRefOut(*result)
 
 
+@with_connection
+def get_reference_urls(conn, paper_url: str) -> Optional[list[str]]:
+  query = sql.SQL('''SELECT referred_paper_url FROM references_table WHERE referred_by_paper_url = %s;''')
+  item = (paper_url, )
+  with conn.cursor() as cur:
+    cur.execute(query, item)
+    return cur.fetchall()
+
 
 # ===
 # Embeddings
