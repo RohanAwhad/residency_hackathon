@@ -68,6 +68,8 @@ class SearchResult:
 @dataclasses.dataclass
 class ProcessRefOut:
   ref_url: str
+  title: str
+  author: str
   q1_ans: str
   q2_ans: str
   q3_ans: str

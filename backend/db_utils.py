@@ -191,7 +191,7 @@ def insert_reference_info(conn, referred_by_url: str, ref_id: str, ref_url: str,
 @with_connection
 def get_reference_ids_of_paper(conn, referred_by_paper_url: str):
   read_query = sql.SQL('''
-    SELECT reference_ids
+    SELECT reference_id
     FROM references_table
     WHERE referred_by_paper_url = %s
   ''')
@@ -201,7 +201,7 @@ def get_reference_ids_of_paper(conn, referred_by_paper_url: str):
     result = cur.fetchall()
 
   if result is None or len(result) == 0: return None
-  return result
+  return [x[0] for x in result]
 
 
 @with_connection
@@ -231,7 +231,7 @@ def get_reference_info_for_searching(conn, referred_by_paper_url, reference_id: 
 @with_connection
 def get_processed_reference(conn, paper_url: str, ref_id: str) -> Optional[data_models.ProcessRefOut]:
   read_query = sql.SQL('''
-    SELECT referred_paper_url, q1_answer, q2_answer, q3_answer
+    SELECT referred_paper_url, title, authors, q1_answer, q2_answer, q3_answer
     FROM references_table
     WHERE referred_by_paper_url = %s AND reference_id = %s
     ;
@@ -241,7 +241,10 @@ def get_processed_reference(conn, paper_url: str, ref_id: str) -> Optional[data_
     cur.execute(read_query, item)
     result = cur.fetchone()
   if not result or None in result: return None
-  return data_models.ProcessRefOut(*result)
+  print(result)
+  ref_url, title, authors, q1_ans, q2_ans, q3_ans = result
+  author = authors.split('; ')[0]
+  return data_models.ProcessRefOut(ref_url, title, author, q1_ans, q2_ans, q3_ans)
 
 
 @with_connection

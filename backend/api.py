@@ -1,9 +1,7 @@
-from requests import status_codes
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
-from typing import Optional
 
 import data_models
 import db_utils
@@ -104,8 +102,5 @@ def generate_code(inp: CodeReqIn):
 
 
 if __name__ == '__main__':
-  msgs = [data_models.Message('user', 'Whats the implementation model?')]
-  print(generate_chat_response(ChatReqIn(paper_url='https://arxiv.org/pdf/2407.02049.pdf', messages=msgs)))
-  exit(0)
   import uvicorn
   uvicorn.run(app, host='localhost', port=8080)

@@ -186,12 +186,16 @@ def generate_chat_response(context: Optional[str], messages: list[data_models.Me
   messages[-1].content = modified_msg_prompt
   messages = [data_models.Message('system', sys_prompt), ] + messages
 
-  response = client.chat.completions.create(
-    model='meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
-    messages=[x.__dict__ for x in messages],
-    max_tokens=1024,
-  )
-  return response.choices[0].message.content
+  try:
+    response = client.chat.completions.create(
+      model='meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+      messages=[x.__dict__ for x in messages],
+      max_tokens=1024,
+    )
+    return response.choices[0].message.content
+  except Exception as e:
+    print(e)
+    return None
 
 
 # process reference
@@ -355,7 +359,7 @@ def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.Proce
   q3 = ans['Question 3']
   db_utils.insert_reference_info(paper_url, ref_id, ref_url, q1, q2, q3)
 
-  return data_models.ProcessRefOut(ref_url, q1, q2, q3)
+  return data_models.ProcessRefOut(ref_url, info.title, info.authors[0] if info.authors else '', q1, q2, q3)
 
   
 

@@ -351,6 +351,89 @@ export const getCode = async function* (mindmap) {
   }
 }
 
+export const getRefIds = async (paper_url) => {
+  const response = await fetch(`${localApiUrl}/process_paper?paper_url=${paper_url}`, {
+    method: 'GET',
+    headers: {'Accept': 'application/json'}
+  })
+  if (!response.ok) {
+    throw new Error('Network response was not ok ' + response.statusText);
+  }
+  return await response.json();
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+export const getRefData = async (paper_url, ref_id) => {
+
+  while (true) {
+    const response = await fetch(`${localApiUrl}/process_reference?paper_url=${paper_url}&ref_id=${ref_id}`, {
+      method: 'GET',
+      headers: {'Accept': 'application/json'}
+    })
+    if (response.ok) {
+      return await response.json();
+    }
+    await sleep(1000)
+  }
+}
+
+export const getChatResponse = async (paper_url, messages) => {
+  const response = await fetch(`${localApiUrl}/chat/response`, {
+    method: 'POST',
+    headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+    body: JSON.stringify({ paper_url, messages })
+  })
+
+  if (!response.ok) {
+    throw new Error('Network response was not ok ' + response.statusText);
+  }
+  return await response.json();
+}
+
+/*
+export const getRefIds = function (paper_url) {
+  fetch(`${localApiUrl}/process_paper?paper_url=${paper_url}`, {
+    method: 'GET',
+    headers: {
+            'Accept': 'application/json'
+    }
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok ' + response.statusText);
+      }
+      return response.json();
+    })
+    .then(data => {
+      return data;
+    })
+    .catch(error => {
+      console.error('There was a problem with the fetch operation:', error);
+    });
+}
+
+export const getRefData = (paper_url, ref_id) => {
+        fetch(`${localApiUrl}/process_reference?paper_url=${paper_url}&ref_id=${ref_id}`, {
+                method: 'GET',
+                headers: {
+                        'Accept': 'application/json'
+                }
+        })
+                .then(response => {
+                        if (!response.ok) {
+                                throw new Error('Network response was not ok ' + response.statusText);
+                        }
+                        return response.json();
+                })
+                .then(data => {
+                        console.log(data);
+                })
+                .catch(error => {
+                        console.error('There was a problem with the fetch operation:', error);
+                });
+}
+
+*/
 
 // Mihir's API
 const apiUrl = 'https://c4f1-73-126-64-43.ngrok-free.app'; // Adjust this URL as needed
@@ -397,6 +480,7 @@ function convertJsonFormat(inputJson) {
 }
 
 // Function to get chat response
+/*
 export const getChatResponse = async (paperUrl, history, newMessage) => {
   try {
     history = jsonToChat(history);
@@ -411,6 +495,7 @@ export const getChatResponse = async (paperUrl, history, newMessage) => {
     throw error;
   }
 };
+*/
 
 function jsonToChat(jsonData) {
   let chatString = '';
