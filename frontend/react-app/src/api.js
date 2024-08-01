@@ -302,6 +302,19 @@ import axios from 'axios';
 
 const localApiUrl = 'http://localhost:8080';
 
+export const getMindmapMd = async url => {
+  try {
+    const response = await fetch(`${localApiUrl}/get_mindmap?url=${url}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Error: ', error)
+  }
+}
+
+/*
 export const getMindmapMd = async function* (url) {
   try {
     const response = await fetch(`${localApiUrl}/get_mindmap?url=${url}`);
@@ -322,6 +335,7 @@ export const getMindmapMd = async function* (url) {
     console.error('Error:', error);
   }
 }
+*/
 
 export const getCode = async function* (mindmap) {
   console.log(mindmap)
@@ -351,6 +365,45 @@ export const getCode = async function* (mindmap) {
   }
 }
 
+export const getRefIds = async (paper_url) => {
+  const response = await fetch(`${localApiUrl}/process_paper?paper_url=${paper_url}`, {
+    method: 'GET',
+    headers: {'Accept': 'application/json'}
+  })
+  if (!response.ok) {
+    throw new Error('Network response was not ok ' + response.statusText);
+  }
+  return await response.json();
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+export const getRefData = async (paper_url, ref_id) => {
+
+  while (true) {
+    const response = await fetch(`${localApiUrl}/process_reference?paper_url=${paper_url}&ref_id=${ref_id}`, {
+      method: 'GET',
+      headers: {'Accept': 'application/json'}
+    })
+    if (response.ok) {
+      return await response.json();
+    }
+    await sleep(1000)
+  }
+}
+
+export const getChatResponse = async (paper_url, messages) => {
+  const response = await fetch(`${localApiUrl}/chat/response`, {
+    method: 'POST',
+    headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+    body: JSON.stringify({ paper_url, messages })
+  })
+
+  if (!response.ok) {
+    throw new Error('Network response was not ok ' + response.statusText);
+  }
+  return await response.json();
+}
+
 
 // Mihir's API
 const apiUrl = 'https://c4f1-73-126-64-43.ngrok-free.app'; // Adjust this URL as needed
@@ -370,6 +423,7 @@ export const getSummaries = async (paperUrl) => {
     throw error;
   }
 };
+
 function convertJsonFormat(inputJson) {
   const { summary, qa_for_references } = inputJson;
   
@@ -396,21 +450,6 @@ function convertJsonFormat(inputJson) {
   return output;
 }
 
-// Function to get chat response
-export const getChatResponse = async (paperUrl, history, newMessage) => {
-  try {
-    history = jsonToChat(history);
-    const response = await axios.post(`${apiUrl}/get_chat_response`, {
-      paper_url: paperUrl,
-      history: history,
-      new_message: `User: ${newMessage}`
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error getting chat response:', error);
-    throw error;
-  }
-};
 
 function jsonToChat(jsonData) {
   let chatString = '';
