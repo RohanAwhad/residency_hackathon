@@ -85,11 +85,16 @@ def tmp(x):
   mindmap_chunks = x
 
 @app.get('/get_mindmap')
-def read_minmap_md(url: str):
+def read_minmap_md(url: str) -> str:
+  if not url.endswith('.pdf'): url += '.pdf'
   paper = utils.get_paper(url)
+  if paper is None: return HTTPException(status_code=500, detail='Couldn\'t find paper in DB')
   mindmap_iter = utils.generate_mindmap(paper)
+  if mindmap_iter is None: return HTTPException(status_code=500, detail='Couldn\'t generate mindmap of the paper')
   # TODO (rohan): add code to save the mindmap in the DB at appropriate location
-  return StreamingResponse(stream_response(mindmap_iter, tmp), media_type='text/plain')
+  #return StreamingResponse(stream_response(mindmap_iter, tmp), media_type='text/plain')
+  print(mindmap_iter)
+  return mindmap_iter
 
 class CodeReqIn(BaseModel):
   mindmap: str

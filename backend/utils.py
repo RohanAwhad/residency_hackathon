@@ -370,8 +370,24 @@ class Paper(BaseModel):
   content: str
 
 @functools.lru_cache(maxsize=128)
-def get_paper(url: str) -> Paper:
+def get_paper(url: str) -> Optional[Paper]:
   """Get the paper title, abstract and content from a given URL."""
+
+  paper = db_utils.read_paper(url)
+  if paper is None: return None
+
+  content = []
+  for sec in json.loads(paper.sections_json):
+    heading = sec['heading']
+    text = sec['text']
+    content.append(f'## {heading}\n{text}')
+
+  return Paper(
+    title=paper.title,
+    abstract=paper.abstract,
+    content='\n\n'.join(content)
+  )
+    
 
   # TODO (rohan): update this to call Mihir's API
   with open('/Users/rohan/1_Project/the_residency_hackathon/sample.json', 'r') as f: data = json.load(f)
@@ -390,6 +406,7 @@ def get_paper(url: str) -> Paper:
   )
 
 def generate_mindmap(paper: Paper):
+  '''
   model = genai.GenerativeModel(gemini_flash)
   with open(f'{PROMPT_DIR}/paper_to_mindmap_prompt.txt', 'r') as f: sys_prompt = f.read()
   res = model.generate_content([sys_prompt, paper.model_dump_json(indent=2)], stream=True)
@@ -397,6 +414,21 @@ def generate_mindmap(paper: Paper):
     print(chunk.text)
     yield chunk.text
   yield "<|im_end|>"
+  '''
+
+  with open(f'{PROMPT_DIR}/paper_to_mindmap_prompt.txt', 'r') as f: sys_prompt = f.read()
+  messages = [{'role': 'system', 'content': sys_prompt}, {'role': 'user', 'content': paper.model_dump_json(indent=2)}]
+
+  res = client.chat.completions.create(
+    model='meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+    messages=messages,
+    max_tokens=1024,
+  )
+  content = res.choices[0].message.content
+  #print('Mindmap')
+  #print(content)
+  return content
+
 
 
 def generate_code(mindmap):

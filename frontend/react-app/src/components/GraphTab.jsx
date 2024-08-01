@@ -38,6 +38,7 @@ const GraphTab = (props) => {
     // use api to get markdown
     if (!props.url) return;
     
+    /*
     const iterator = getMindmapMd(props.url)
     let processNext = () => {
       iterator.next().then(({ value, done }) => {
@@ -52,9 +53,12 @@ const GraphTab = (props) => {
       });
     }
     processNext();
+    */
 
-    // const md = getMindmap()
-    // props.setMindmap(md)
+    getMindmapMd(props.url).then(md => setMarkdown(md));
+    //console.log(md);
+    //setMarkdown(md);
+    //props.setMindmap(md)
   }, [])
 
   useEffect(() => {

@@ -302,6 +302,19 @@ import axios from 'axios';
 
 const localApiUrl = 'http://localhost:8080';
 
+export const getMindmapMd = async url => {
+  try {
+    const response = await fetch(`${localApiUrl}/get_mindmap?url=${url}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Error: ', error)
+  }
+}
+
+/*
 export const getMindmapMd = async function* (url) {
   try {
     const response = await fetch(`${localApiUrl}/get_mindmap?url=${url}`);
@@ -322,6 +335,7 @@ export const getMindmapMd = async function* (url) {
     console.error('Error:', error);
   }
 }
+*/
 
 export const getCode = async function* (mindmap) {
   console.log(mindmap)
@@ -390,50 +404,6 @@ export const getChatResponse = async (paper_url, messages) => {
   return await response.json();
 }
 
-/*
-export const getRefIds = function (paper_url) {
-  fetch(`${localApiUrl}/process_paper?paper_url=${paper_url}`, {
-    method: 'GET',
-    headers: {
-            'Accept': 'application/json'
-    }
-  })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Network response was not ok ' + response.statusText);
-      }
-      return response.json();
-    })
-    .then(data => {
-      return data;
-    })
-    .catch(error => {
-      console.error('There was a problem with the fetch operation:', error);
-    });
-}
-
-export const getRefData = (paper_url, ref_id) => {
-        fetch(`${localApiUrl}/process_reference?paper_url=${paper_url}&ref_id=${ref_id}`, {
-                method: 'GET',
-                headers: {
-                        'Accept': 'application/json'
-                }
-        })
-                .then(response => {
-                        if (!response.ok) {
-                                throw new Error('Network response was not ok ' + response.statusText);
-                        }
-                        return response.json();
-                })
-                .then(data => {
-                        console.log(data);
-                })
-                .catch(error => {
-                        console.error('There was a problem with the fetch operation:', error);
-                });
-}
-
-*/
 
 // Mihir's API
 const apiUrl = 'https://c4f1-73-126-64-43.ngrok-free.app'; // Adjust this URL as needed
@@ -453,6 +423,7 @@ export const getSummaries = async (paperUrl) => {
     throw error;
   }
 };
+
 function convertJsonFormat(inputJson) {
   const { summary, qa_for_references } = inputJson;
   
@@ -479,23 +450,6 @@ function convertJsonFormat(inputJson) {
   return output;
 }
 
-// Function to get chat response
-/*
-export const getChatResponse = async (paperUrl, history, newMessage) => {
-  try {
-    history = jsonToChat(history);
-    const response = await axios.post(`${apiUrl}/get_chat_response`, {
-      paper_url: paperUrl,
-      history: history,
-      new_message: `User: ${newMessage}`
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error getting chat response:', error);
-    throw error;
-  }
-};
-*/
 
 function jsonToChat(jsonData) {
   let chatString = '';

@@ -62,13 +62,13 @@ const ChatTab = (props) => {
   }
   const handleSendMessage = () => {
     console.log("Sending message: ", userCurrMsg);
-    setUserCurrMsg("");
-    setGeneratingMsg(true);
     const history = messages
     setMessages(messages => {
       const newMessages = [...messages, { is_assistant: false, message: userCurrMsg }]
       return newMessages
     });
+    setUserCurrMsg("");
+    setGeneratingMsg(true);
 
     getChatResponse(props.url, history, userCurrMsg).then((response) => {
       setMessages(messages => {
