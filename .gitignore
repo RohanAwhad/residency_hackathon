@@ -134,3 +134,6 @@ coverage/
 ## data folder
 /data
 
+.pyrightconfig
+frontend/htmx-app
+

@@ -118,9 +118,9 @@ def insert_paper(conn, paper: data_models.Papers) -> None:
   with conn.cursor() as cur: cur.execute(insert_papers_query, item)
 
 @with_connection
-def insert_summary(conn, paper_url: str, summary: str):
+def save_mindmap(conn, mindmap: str, paper_url: str):
   update_query = sql.SQL('''UPDATE papers SET summary_markdown = %s WHERE paper_url = %s''')
-  item = [summary, paper_url]
+  item = [mindmap, paper_url]
   with conn.cursor() as cur: cur.execute(update_query, item)
 
 @with_connection

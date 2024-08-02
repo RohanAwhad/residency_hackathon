@@ -26,6 +26,7 @@ Present the mind map in a clear, hierarchical text format, using indentation to 
 
 Example format:
 
+```md
 * Central Topic
   - Main Idea 1
     * Sub-idea 1.1
@@ -34,5 +35,7 @@ Example format:
     * Sub-idea 2.1
       - Detail 2.1.1
     * Sub-idea 2.2
+```
 
 Remember, your goal is to create a mind map that someone could use to quickly understand the main points and structure of the paper, even if they haven't read it themselves.
+Always return the mind map enclosed in triple backticks like (```md ... ```)

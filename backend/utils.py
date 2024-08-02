@@ -1,5 +1,4 @@
 import google.generativeai as genai
-import io
 import json
 import os
 import re
@@ -7,23 +6,15 @@ import requests
 import functools
 
 from pydantic import BaseModel
-from PyPDF2 import PdfReader
+from typing import Optional
+
+import data_models
+import db_utils
 
 # ===
 # Constants
 # ===
-GEMINI_API_KEY = os.environ['GEMINI_API_KEY']
-PROMPT_DIR = "prompts"
-
-# ===
-# Configure LLMs
-# ===
-genai.configure(api_key=GEMINI_API_KEY)
-
-# Specify the Gemini-Flash model
-gemini_flash = "gemini-1.5-flash"
-gemini_pro = "gemini-1.5-pro"
-
+PROMPT_DIR = 'prompts'
 
 # ===
 # Functions
@@ -33,10 +24,7 @@ import tempfile
 import requests
 import scipdf
 
-from typing import Optional
 
-import data_models
-import db_utils
 
 @dataclasses.dataclass
 class ProcessCurrPaperOut:
@@ -330,9 +318,9 @@ def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.Proce
   while max_iterations > 0: 
     try:
       res = client.chat.completions.create(
-        model='meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+        model='meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
         messages=messages,
-        max_tokens=1024,
+        max_tokens=4096,
       )
       content = res.choices[0].message.content
       print(content)
@@ -368,6 +356,8 @@ class Paper(BaseModel):
   title: str
   abstract: str
   content: str
+  mindmap: Optional[str] = None
+  code: Optional[str] = None
 
 @functools.lru_cache(maxsize=128)
 def get_paper(url: str) -> Optional[Paper]:
@@ -385,50 +375,26 @@ def get_paper(url: str) -> Optional[Paper]:
   return Paper(
     title=paper.title,
     abstract=paper.abstract,
-    content='\n\n'.join(content)
+    content='\n\n'.join(content),
+    mindmap=paper.summary_markdown,
+    code=paper.code,
   )
-    
-
-  # TODO (rohan): update this to call Mihir's API
-  with open('/Users/rohan/1_Project/the_residency_hackathon/sample.json', 'r') as f: data = json.load(f)
-
-  content = []
-  for sec in data['sections']:
-    heading = sec['heading']
-    text = sec['text']
-    content.append(f'## {heading}\n{text}')
 
 
-  return Paper(
-    title=data['title'],
-    abstract=data['abstract'],
-    content='\n\n'.join(content)
-  )
+
 
 def generate_mindmap(paper: Paper):
-  '''
-  model = genai.GenerativeModel(gemini_flash)
   with open(f'{PROMPT_DIR}/paper_to_mindmap_prompt.txt', 'r') as f: sys_prompt = f.read()
-  res = model.generate_content([sys_prompt, paper.model_dump_json(indent=2)], stream=True)
-  for chunk in res:
-    print(chunk.text)
-    yield chunk.text
-  yield "<|im_end|>"
-  '''
-
-  with open(f'{PROMPT_DIR}/paper_to_mindmap_prompt.txt', 'r') as f: sys_prompt = f.read()
-  messages = [{'role': 'system', 'content': sys_prompt}, {'role': 'user', 'content': paper.model_dump_json(indent=2)}]
-
-  res = client.chat.completions.create(
-    model='meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
-    messages=messages,
-    max_tokens=1024,
-  )
-  content = res.choices[0].message.content
-  #print('Mindmap')
-  #print(content)
-  return content
-
+  messages = [data_models.Message('system', sys_prompt), data_models.Message('user', paper.model_dump_json(indent=2))]
+  max_iters = 3
+  while max_iters > 0:
+    try:
+      res = llm_call(messages)
+      ptrn = re.compile(r'```md(.*)```', re.DOTALL)
+      return re.search(ptrn, res).group(1).strip()
+    except Exception as e:
+      print(e)
+      max_iters -= 1
 
 
 def generate_code(mindmap):
@@ -442,6 +408,17 @@ def generate_code(mindmap):
 # ===
 # Utils
 # ===
+def llm_call(messages: list[data_models.Message]):
+  res = client.chat.completions.create(
+    model='meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+    messages=[x.__dict__ for x in messages],
+    max_tokens=4096,
+    temperature=0.8,
+  )
+  content = res.choices[0].message.content
+  return content
+
+
 def save_text(text, filename):
   with open(filename, 'w') as f: f.write(text)
 

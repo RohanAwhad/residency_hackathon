@@ -89,12 +89,14 @@ def read_minmap_md(url: str) -> str:
   if not url.endswith('.pdf'): url += '.pdf'
   paper = utils.get_paper(url)
   if paper is None: return HTTPException(status_code=500, detail='Couldn\'t find paper in DB')
-  mindmap_iter = utils.generate_mindmap(paper)
-  if mindmap_iter is None: return HTTPException(status_code=500, detail='Couldn\'t generate mindmap of the paper')
-  # TODO (rohan): add code to save the mindmap in the DB at appropriate location
-  #return StreamingResponse(stream_response(mindmap_iter, tmp), media_type='text/plain')
-  print(mindmap_iter)
-  return mindmap_iter
+  print('Mindmap in DB:', paper.mindmap)
+  if paper.mindmap is None:
+    mindmap = utils.generate_mindmap(paper)
+    if mindmap is None: return HTTPException(status_code=500, detail='Couldn\'t generate mindmap of the paper')
+    db_utils.save_mindmap(mindmap, url)
+    return mindmap
+
+  return paper.mindmap
 
 class CodeReqIn(BaseModel):
   mindmap: str
@@ -108,4 +110,4 @@ def generate_code(inp: CodeReqIn):
 
 if __name__ == '__main__':
   import uvicorn
-  uvicorn.run(app, host='localhost', port=8080)
+  uvicorn.run('api:app', host='localhost', port=8080, reload=True)
