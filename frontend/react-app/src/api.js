@@ -143,9 +143,9 @@ export function getDummySuggestions() {
   //   ]
   // }
   return [
-    {"suggestion": "Thanks for the update! I'll adjust my schedule accordingly."},
-    {"suggestion": "Thanks for the reminder! I'll make sure my timesheets are in by tomorrow."},
-    {"suggestion": "Sounds good! I've been wanting to try that place. See you at noon."}
+    { "suggestion": "Thanks for the update! I'll adjust my schedule accordingly." },
+    { "suggestion": "Thanks for the reminder! I'll make sure my timesheets are in by tomorrow." },
+    { "suggestion": "Sounds good! I've been wanting to try that place. See you at noon." }
   ]
 }
 
@@ -314,6 +314,22 @@ export const getMindmapMd = async url => {
   }
 }
 
+export const getCode = async (mindmap, url) => {
+  try {
+    const response = await fetch(`${localApiUrl}/get_code`, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mindmap: mindmap, paper_url: url })
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Error: ', error)
+  }
+}
+
 /*
 export const getMindmapMd = async function* (url) {
   try {
@@ -335,9 +351,8 @@ export const getMindmapMd = async function* (url) {
     console.error('Error:', error);
   }
 }
-*/
 
-export const getCode = async function* (mindmap) {
+export const getCode = async function*(mindmap) {
   console.log(mindmap)
   try {
     const response = await fetch(`${localApiUrl}/get_code`, {
@@ -364,11 +379,12 @@ export const getCode = async function* (mindmap) {
     console.error('Error:', error);
   }
 }
+*/
 
 export const getRefIds = async (paper_url) => {
   const response = await fetch(`${localApiUrl}/process_paper?paper_url=${paper_url}`, {
     method: 'GET',
-    headers: {'Accept': 'application/json'}
+    headers: { 'Accept': 'application/json' }
   })
   if (!response.ok) {
     throw new Error('Network response was not ok ' + response.statusText);
@@ -382,9 +398,10 @@ export const getRefData = async (paper_url, ref_id) => {
   while (true) {
     const response = await fetch(`${localApiUrl}/process_reference?paper_url=${paper_url}&ref_id=${ref_id}`, {
       method: 'GET',
-      headers: {'Accept': 'application/json'}
+      headers: { 'Accept': 'application/json' }
     })
     if (response.ok) {
+      console.log(response.status);
       return await response.json();
     }
     await sleep(1000)
@@ -394,7 +411,7 @@ export const getRefData = async (paper_url, ref_id) => {
 export const getChatResponse = async (paper_url, messages) => {
   const response = await fetch(`${localApiUrl}/chat/response`, {
     method: 'POST',
-    headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ paper_url, messages })
   })
 
@@ -426,14 +443,14 @@ export const getSummaries = async (paperUrl) => {
 
 function convertJsonFormat(inputJson) {
   const { summary, qa_for_references } = inputJson;
-  
+
   let output = [];
   let id = 1;
 
   for (const [key, value] of Object.entries(qa_for_references)) {
     for (const [refKey, refValue] of Object.entries(value)) {
       const { qa_pairs, paper_data } = refValue;
-      
+
       output.push({
         id: parseInt(refKey.slice(1)) + 1,
         first_author_name: paper_data.first_author,
@@ -453,11 +470,11 @@ function convertJsonFormat(inputJson) {
 
 function jsonToChat(jsonData) {
   let chatString = '';
-  
+
   jsonData.forEach(entry => {
     const speaker = entry.is_assistant ? 'Assistant' : 'User';
     chatString += `${speaker}: ${entry.message}\n\n`;
   });
-  
+
   return chatString.trim();
 }

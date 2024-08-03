@@ -35,7 +35,7 @@ Follow these guidelines when generating the Python script:
         pass
     ```
 
-12. Before presenting the code, provide a brief plan outlining the steps you'll take to implement the script. Enclose this plan in <plan> ... </plan> tags.
+12. Before presenting the code, provide a brief plan outlining the steps you'll take to implement the script. Enclose this plan in triple backticks like (```plan ... ```)
 
 13. Present the final Python code enclosed in ```python ... ``` tags.
 

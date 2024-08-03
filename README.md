@@ -10,12 +10,27 @@ Current Features:
 
 ### How to Run:
 
+0. Prerequistes:
+  - Conda
+  - Docker
+
 1. Clone this repo:
   ```bash
   git clone https://github.com/rohanawhad/residency_hackathon
   ```
 
-2. Source `.local.env`. You can update the values as you see fit there.
+2. Source `.local.env`. You can update the values as you see fit there. You need to add your Brave Search and Together AI API Key.
+  ```bash
+  # .local.env
+  export PG_USER=residency
+  export PG_PASSWORD=password
+  export PG_HOST=localhost
+  export PG_PORT=5433
+  export PG_DB=pdf_extension
+  export EMBEDDING_MODEL_DIR="avsolatorio/NoInstruct-small-Embedding-v0"
+  export BRAVE_SEARCH_API_KEY=  # get this from Brave Search API
+  export TOGETHER_API_KEY=  # go to Together AI
+  ```
   ```bash
   source .local.env
   ```

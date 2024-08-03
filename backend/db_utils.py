@@ -124,7 +124,7 @@ def save_mindmap(conn, mindmap: str, paper_url: str):
   with conn.cursor() as cur: cur.execute(update_query, item)
 
 @with_connection
-def insert_code(conn, paper_url: str, code: str):
+def save_code(conn, code: str, paper_url: str):
   update_query = sql.SQL('''UPDATE papers SET code = %s WHERE paper_url = %s''')
   item = [code, paper_url]
   with conn.cursor() as cur: cur.execute(update_query, item)
@@ -244,7 +244,7 @@ def get_processed_reference(conn, paper_url: str, ref_id: str) -> Optional[data_
   print(result)
   ref_url, title, authors, q1_ans, q2_ans, q3_ans = result
   author = authors.split('; ')[0]
-  return data_models.ProcessRefOut(ref_url, title, author, q1_ans, q2_ans, q3_ans)
+  return data_models.ProcessRefOut(ref_url, title, author, q1_ans, q2_ans, q3_ans, deleted=False)
 
 
 @with_connection
@@ -255,6 +255,14 @@ def get_reference_urls(conn, paper_url: str) -> Optional[list[str]]:
     cur.execute(query, item)
     return cur.fetchall()
 
+
+@with_connection
+def remove_reference(conn, paper_url: str, ref_id: str):
+  # remove the corresponding reference from the paper if the search result returned nothing
+  delete_query = sql.SQL('''DELETE FROM references_table WHERE referred_by_paper_url = %s AND reference_id = %s''')
+  item = (paper_url, ref_id)
+  with conn.cursor() as cur:
+    cur.execute(delete_query, item)
 
 # ===
 # Embeddings

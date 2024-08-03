@@ -25,14 +25,14 @@ def read_root():
 def process_paper(paper_url: str):
   ret = utils.process_curr_paper(paper_url)
   if ret: return ret
-  return HTTPException(status_code=500, detail="Couldn't process current paper")
+  raise HTTPException(status_code=500, detail="Couldn't process current paper")
 
 # process reference
 @app.get('/process_reference')
 def process_reference(paper_url: str, ref_id: str):
   ret = utils.process_reference(paper_url, ref_id)
   if ret: return ret
-  return HTTPException(status_code=500, detail="Couldn't generate information about this reference")
+  raise HTTPException(status_code=500, detail="Couldn't generate information about this reference")
 
 # chat
 class Message(BaseModel):
@@ -47,7 +47,7 @@ class ChatReqIn(BaseModel):
 def generate_chat_response(inp: ChatReqIn):
   query = inp.messages[-1].content
   query_embeddings = utils.embed([query], mode='query')
-  if query_embeddings is None: return HTTPException(status_code=500, detail='Couldn\'t generate embeddings from user message')
+  if query_embeddings is None: raise HTTPException(status_code=500, detail='Couldn\'t generate embeddings from user message')
   query_embeddings = query_embeddings[0]
 
   paper_url = str(inp.paper_url)
@@ -88,24 +88,31 @@ def tmp(x):
 def read_minmap_md(url: str) -> str:
   if not url.endswith('.pdf'): url += '.pdf'
   paper = utils.get_paper(url)
-  if paper is None: return HTTPException(status_code=500, detail='Couldn\'t find paper in DB')
+  if paper is None: raise HTTPException(status_code=500, detail='Couldn\'t find paper in DB')
   print('Mindmap in DB:', paper.mindmap)
   if paper.mindmap is None:
     mindmap = utils.generate_mindmap(paper)
-    if mindmap is None: return HTTPException(status_code=500, detail='Couldn\'t generate mindmap of the paper')
+    if mindmap is None: raise HTTPException(status_code=500, detail='Couldn\'t generate mindmap of the paper')
     db_utils.save_mindmap(mindmap, url)
     return mindmap
 
   return paper.mindmap
 
 class CodeReqIn(BaseModel):
+  paper_url: str
   mindmap: str
 
 # TODO (rohan): solve for <plan> ... </plan> in the code streaming. Use a var to track, if is_planning
 @app.post('/get_code')
 def generate_code(inp: CodeReqIn):
-  code_iter = utils.generate_code(inp.mindmap)
-  return StreamingResponse(code_iter, media_type='text/plain')
+  if not inp.paper_url.endswith('.pdf'): inp.paper_url += '.pdf'
+  paper = utils.get_paper(inp.paper_url)
+  if paper.code is None:
+    code = utils.generate_code(inp.mindmap)
+    if code is None: raise HTTPException(status_code=500, detail='Couldn\'t generate code for the paper')
+    db_utils.save_code(code, str(inp.paper_url))
+    return code
+  return paper.code
 
 
 if __name__ == '__main__':

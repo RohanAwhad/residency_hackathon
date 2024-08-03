@@ -55,8 +55,15 @@ def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
   print('PDF downloaded at:', fn)
 
   # parse pdf
-  pdf_dict = scipdf.parse_pdf_to_dict(fn)
-  os.remove(fn) # delete tmp file post processing
+  try:
+    pdf_dict = scipdf.parse_pdf_to_dict(fn)
+  except Exception as e:
+    print(e)
+    pdf_dict = None
+  finally:
+    os.remove(fn) # delete tmp file post processing
+
+  if pdf_dict is None: return None
   paper = data_models.Papers(
     url,
     pdf_dict['title'],
@@ -235,7 +242,7 @@ def search_brave(query: str, count: int):
   headers = {
     "Accept": "application/json",
     "Accept-Encoding": "gzip",
-    "X-Subscription-Token": os.environ['BRAVE_SEARCH_AI_API_KEY']
+    "X-Subscription-Token": os.environ['BRAVE_SEARCH_API_KEY']
   }
   params = {
     "q": query,
@@ -248,7 +255,7 @@ def search_brave(query: str, count: int):
   response = response.json()
   if 'web' not in response or 'results' not in response['web']:
     print('Brave search didn\'t return results\n', response)
-    return None
+    return {}
   return response
 
 def get_pdf_url_from_search_results(response):
@@ -276,24 +283,27 @@ def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.Proce
   # search db for reference
   paper = db_utils.search_paper_by_title(info.title.strip().lower())
   if not paper:
-    query = f'filetype:pdf "{info.title.strip().lower()}"'
-    response = search_brave(query, 1)
-    if not response:
-      query = f'"{info.title.strip().lower()}"'
-      response = search_brave(query, count=10)
-      if not response: return None
-      else:
-        ref_url = get_pdf_url_from_search_results(response)
-        if not ref_url:
-          print('Unable to get paper url from brave search')
-          return None
+    query = f'"{info.title.strip().lower()}"'
+    response = search_brave(query, count=20)
+    if response is None:
+      return None
+    elif len(response) == 0:
+      # remove the corresponding reference from the paper if the search result returned nothing
+      db_utils.remove_reference(paper_url, ref_id)
+      return data_models.ProcessRefOut('', '', '', '', '', '', deleted=True)
     else:
-      ref_url = response['web']['results'][0]['url']
+      ref_url = get_pdf_url_from_search_results(response)
+      if not ref_url:
+        print('Unable to get paper url from brave search')
+        db_utils.remove_reference(paper_url, ref_id)
+        return data_models.ProcessRefOut('', '', '', '', '', '', deleted=True)
+        return None
 
     ref_obj = process_curr_paper(ref_url)
     if not ref_obj:
       print('Error while processing reference paper')
-      return None
+      db_utils.remove_reference(paper_url, ref_id)
+      return data_models.ProcessRefOut('', '', '', '', '', '', deleted=True)
 
     ref_url = ref_obj.url
 
@@ -347,7 +357,7 @@ def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.Proce
   q3 = ans['Question 3']
   db_utils.insert_reference_info(paper_url, ref_id, ref_url, q1, q2, q3)
 
-  return data_models.ProcessRefOut(ref_url, info.title, info.authors[0] if info.authors else '', q1, q2, q3)
+  return data_models.ProcessRefOut(ref_url, info.title, info.authors[0] if info.authors else '', q1, q2, q3, deleted=False)
 
   
 
@@ -359,7 +369,6 @@ class Paper(BaseModel):
   mindmap: Optional[str] = None
   code: Optional[str] = None
 
-@functools.lru_cache(maxsize=128)
 def get_paper(url: str) -> Optional[Paper]:
   """Get the paper title, abstract and content from a given URL."""
 
@@ -398,11 +407,17 @@ def generate_mindmap(paper: Paper):
 
 
 def generate_code(mindmap):
-  model = genai.GenerativeModel(gemini_pro)
   with open(f'{PROMPT_DIR}/paper_to_python_prompt.txt', 'r') as f: sys_prompt = f.read()
-  res = model.generate_content([sys_prompt, mindmap], stream=True)
-  for chunk in res: yield chunk.text
-  yield "<|im_end|>"
+  messages = [data_models.Message('system', sys_prompt), data_models.Message('user', mindmap)]
+  max_iters = 3
+  while max_iters > 0:
+    try:
+      res = llm_call(messages)
+      ptrn = re.compile(r'```python(.*)```', re.DOTALL)
+      return re.search(ptrn, res).group(1).strip()
+    except Exception as e:
+      print(e)
+      max_iters -= 1
 
 
 # ===

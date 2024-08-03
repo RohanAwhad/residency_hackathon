@@ -3,7 +3,6 @@ import { Markmap } from 'markmap-view';
 import { transformer } from '@/constants';
 import { Toolbar } from 'markmap-toolbar';
 import 'markmap-toolbar/dist/style.css';
-import { getMindmap, getMindmapMd } from '@/api'
 
 function renderToolbar(mm, wrapper) {
   while (wrapper?.firstChild) wrapper.firstChild.remove();
@@ -23,43 +22,10 @@ function renderToolbar(mm, wrapper) {
 }
 
 const GraphTab = (props) => {
-  const [markdown, setMarkdown] = useState('')
   const refSvg = useRef(null)
   const refMm = useRef(null)
   const refToolbar = useRef(null)
 
-  const updateMarkdown = (newMd) => {
-    setMarkdown(prevMd => {
-      return `${prevMd}${newMd}`
-    })
-  }
-
-  useEffect(() => {
-    // use api to get markdown
-    if (!props.url) return;
-    
-    /*
-    const iterator = getMindmapMd(props.url)
-    let processNext = () => {
-      iterator.next().then(({ value, done }) => {
-        if (done) {
-          return;
-        }
-        console.log(value)
-        updateMarkdown(value);
-        processNext();
-      }).catch(error => {
-        console.error('Error:', error);
-      });
-    }
-    processNext();
-    */
-
-    getMindmapMd(props.url).then(md => setMarkdown(md));
-    //console.log(md);
-    //setMarkdown(md);
-    //props.setMindmap(md)
-  }, [])
 
   useEffect(() => {
     // Create markmap and save to refMm
@@ -78,28 +44,13 @@ const GraphTab = (props) => {
     // Update data for markmap once value is changed
     const mm = refMm.current;
     if (!mm) return;
-    const { root } = transformer.transform(markdown);
+    const { root } = transformer.transform(props.markdown);
     mm.setData(root);
     mm.fit();
-    console.log(markdown)
-    props.setMindmap(markdown)
-  }, [refMm.current, markdown]);
-
-  // let ret;
-  // if (markdown) {
-  //   ret = (
-  //     <>
-  //       <svg className="flex-1 h-screen w-screen" ref={refSvg} />
-  //       <div className="absolute bottom-1 right-1" ref={refToolbar}></div>
-  //     </>
-  //   )
-  // } else {
-  //   ret = "Generating Mindmap..."
-  // }
+  }, [refMm.current, props.markdown]);
 
   return (
     <>
-      {/* {!markdown && <h1 className="text-base font-bold text-center">Generating Mindmap...</h1>} */}
       <svg className="flex-1 h-screen w-screen" ref={refSvg} />
       <div className="absolute bottom-1 right-1" ref={refToolbar}></div>
     </>

@@ -15,6 +15,9 @@ const CodeTab = (props) => {
   }
 
   useEffect(() => {
+    getCode(props.mindmap, props.url).then(res => setCode(res));
+
+    /*
     const iterator = getCode(props.mindmap)
     let processNext = () => {
       iterator.next().then(({ value, done }) => {
@@ -29,6 +32,7 @@ const CodeTab = (props) => {
       });
     }
     processNext();
+    */
 
     // setCode(getDummyCode())
   }, [])

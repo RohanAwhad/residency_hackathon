@@ -73,6 +73,7 @@ class ProcessRefOut:
   q1_ans: str
   q2_ans: str
   q3_ans: str
+  deleted: bool
 
 
 @dataclasses.dataclass
