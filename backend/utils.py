@@ -1,3 +1,4 @@
+import asyncio
 import google.generativeai as genai
 import json
 import os
@@ -34,7 +35,10 @@ class ProcessCurrPaperOut:
 def _get_section_text(sections):
   return '\n\n'.join([f"### {sec['heading'].strip()}\n\n{sec['text'].strip()}\n" for sec in sections])
 
-def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
+async def parse_with_scipdf(fn: str) -> dict:
+    return await asyncio.to_thread(scipdf.parse_pdf_to_dict, fn)
+
+async def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
   if not url.endswith('.pdf'): url += '.pdf'
 
   # check if already_processed
@@ -56,7 +60,7 @@ def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
 
   # parse pdf
   try:
-    pdf_dict = scipdf.parse_pdf_to_dict(fn)
+    pdf_dict = await parse_with_scipdf(fn)
   except Exception as e:
     print(e)
     pdf_dict = None
@@ -270,7 +274,7 @@ def get_pdf_url_from_search_results(response):
 
 
 
-def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.ProcessRefOut]:
+async def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.ProcessRefOut]:
   if not paper_url.endswith('.pdf'): paper_url += '.pdf'
 
   # check if already processed
@@ -299,7 +303,7 @@ def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.Proce
         return data_models.ProcessRefOut('', '', '', '', '', '', deleted=True)
         return None
 
-    ref_obj = process_curr_paper(ref_url)
+    ref_obj = await process_curr_paper(ref_url)
     if not ref_obj:
       print('Error while processing reference paper')
       db_utils.remove_reference(paper_url, ref_id)
@@ -358,7 +362,6 @@ def process_reference(paper_url: str, ref_id: str) -> Optional[data_models.Proce
   db_utils.insert_reference_info(paper_url, ref_id, ref_url, q1, q2, q3)
 
   return data_models.ProcessRefOut(ref_url, info.title, info.authors[0] if info.authors else '', q1, q2, q3, deleted=False)
-
   
 
 

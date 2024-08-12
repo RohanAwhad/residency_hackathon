@@ -11,6 +11,7 @@ import data_models
 import db_utils
 import utils
 
+
 JWT_SECRET = os.environ['JWT_SECRET']
 
 app = FastAPI()
@@ -64,7 +65,7 @@ def get_user(token: str = Depends(oauth2_scheme)) -> data_models.User | None:
 @app.get('/process_paper')
 async def process_paper(paper_url: str, user: data_models.User = Depends(get_user)):
   print('processing paper:', paper_url)
-  ret = utils.process_curr_paper(paper_url)
+  ret = await utils.process_curr_paper(paper_url)
   if ret: return ret
   raise HTTPException(status_code=500, detail="Couldn't process current paper")
 
@@ -73,7 +74,7 @@ async def process_paper(paper_url: str, user: data_models.User = Depends(get_use
 # process reference
 @app.get('/process_reference')
 async def process_reference(paper_url: str, ref_id: str):
-  ret = utils.process_reference(paper_url, ref_id)
+  ret = await utils.process_reference(paper_url, ref_id)
   if ret: return ret
   raise HTTPException(status_code=500, detail="Couldn't generate information about this reference")
 
