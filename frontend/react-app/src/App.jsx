@@ -205,10 +205,9 @@ function App() {
             </div>
           </TabsContent>
           <TabsContent value="graph">
-            <GraphTab markdown={markdown} />
+            {markdown ? <GraphTab markdown={markdown} /> : <p>Generating mindmap...</p>}
           </TabsContent>
           <TabsContent value="code">
-            {/*<CodeTab mindmap={markdown} url={url} />*/}
             {code ? (
               <SyntaxHighlighter language="python" style={solarizedlight}>
                 {code}
