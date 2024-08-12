@@ -1,5 +1,18 @@
 CREATE EXTENSION IF NOT EXISTS VECTOR;
 
+CREATE TABLE IF NOT EXISTS users_table (
+  user_id VARCHAR(255) PRIMARY KEY,
+  given_name VARCHAR(255) NOT NULL,
+  family_name VARCHAR(255) NOT NULL,
+  email_id VARCHAR(255) UNIQUE NOT NULL,
+  google_access_token VARCHAR(255),
+  google_refresh_token VARCHAR(255),
+  google_id_token VARCHAR(255),
+  profile_pic VARCHAR(255),
+  api_key VARCHAR(255) UNIQUE NOT NULL
+);
+
+
 CREATE TABLE IF NOT EXISTS papers (
   paper_url TEXT PRIMARY KEY,
   title TEXT NOT NULL,

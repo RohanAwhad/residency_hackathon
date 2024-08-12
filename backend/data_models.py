@@ -1,5 +1,21 @@
 import dataclasses
-from typing import Optional, List, Dict
+from typing import Optional, List
+
+
+@dataclasses.dataclass
+class User:
+  user_id: str  # sub = user_id = primary key?
+
+class UserInDB(User):
+  given_name: str
+  family_name: str
+  email_id: str
+  google_access_token: str
+  google_refresh_token: str
+  google_id_token: str
+  profile_pic: str
+  api_key: str
+
 
 @dataclasses.dataclass
 class Papers:

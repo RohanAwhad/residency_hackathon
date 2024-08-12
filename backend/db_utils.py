@@ -290,6 +290,18 @@ def get_top_k_similar(conn, query_embedding: list[float], paper_urls: list[str],
   return [data_models.EmbeddingsOut(paper_url=res[0], chunk=res[1], sim_score=res[2]) for res in results]
 
 
+# ===
+# User
+# ===
+@with_connection
+def get_user_id(conn, user_id: str) -> Optional[data_models.User]:
+  query = sql.SQL('SELECT user_id FROM users_table WHERE user_id = %s;')
+  with conn.cursor() as cur:
+    cur.execute(query, (user_id, ))
+    ret = cur.fetchone()
+    if ret is None: return None
+    return data_models.User(ret[0])
+
 
 
 if __name__ == '__main__':
