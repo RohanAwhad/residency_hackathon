@@ -31,10 +31,10 @@ export const getCode = async (mindmap, url) => {
     }
 }
 
-export const getRefIds = async (paper_url) => {
+export const getRefIds = async (paper_url, apiKey) => {
     const response = await fetch(`${localApiUrl}/process_paper?paper_url=${paper_url}`, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' }
+        headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${apiKey}` }
     })
     if (!response.ok) {
         throw new Error('Network response was not ok ' + response.statusText);
@@ -76,7 +76,7 @@ export const validateApiKey = async (apiKey) => {
         const response = await fetch(`${localApiUrl}/validate/apiKey`, {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apiKey })
+            body: JSON.stringify({ api_key: apiKey })
         });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

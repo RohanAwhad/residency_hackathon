@@ -35,15 +35,14 @@ function App() {
   // code
   const [code, setCode] = useState('');
   useEffect(() => {
-    if (!url || !markdown) return;
+    if (!url || !markdown || !apiKey) return;
     getCode(markdown, url).then(res => setCode(res));
-  }, [url, markdown]);
+  }, [url, markdown, apiKey]);
 
   // ===
   // Utils
   // ===
 
-  /*
   useEffect(() => {
     function handleStorageChange() {
       console.log('storage change')
@@ -52,18 +51,19 @@ function App() {
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
-  */
 
+  /*
   useEffect(() => {
     setUrl("https://arxiv.org/pdf/2006.15720")
   }, [])
+  */
 
 
   useEffect(() => {
-    if (!url) return;
+    if (!url || !apiKey) return;
 
     // get reference info
-    getRefIds(url).then(data => {
+    getRefIds(url, apiKey).then(data => {
       data.ref_ids.forEach(ref_id => {
         getRefData(data.url, ref_id).then(refData => {
           if (refData.deleted) { return };
@@ -86,7 +86,7 @@ function App() {
     // get mindmap markdown
     getMindmapMd(url).then(md => setMarkdown(md));
 
-  }, url)
+  }, [url, apiKey])
 
 
   // chat
@@ -131,8 +131,8 @@ function App() {
   const handleApiKeySubmission = (e) => {
     e.preventDefault();
     const apiKey = apiKeyRef.current.value;
-    validateApiKey(apiKey).then((isValid) => {
-      if (isValid) {
+    validateApiKey(apiKey).then((res) => {
+      if (res.isValid) {
         setApiKey(apiKey);
       } else {
         errorMsgRef.current.classList.remove('invisible')
