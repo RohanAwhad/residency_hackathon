@@ -128,17 +128,28 @@ function App() {
 
   const apiKeyRef = useRef()
   const errorMsgRef = useRef()
+
   const handleApiKeySubmission = (e) => {
     e.preventDefault();
-    const apiKey = apiKeyRef.current.value;
-    validateApiKey(apiKey).then((res) => {
+    const possibleApiKey = apiKeyRef.current.value;
+    validateApiKey(possibleApiKey).then((res) => {
       if (res.isValid) {
-        setApiKey(apiKey);
+        setApiKey(possibleApiKey);
+        chrome.storage.local.set({ apiKey: possibleApiKey });
       } else {
         errorMsgRef.current.classList.remove('invisible')
       }
     });
   };
+
+  useEffect(() => {
+    chrome.storage.local.get('apiKey', (result) => {
+      if (result.apiKey) {
+        setApiKey(result.apiKey);
+        apiKeyRef.current.value = result.apiKey;
+      }
+    });
+  }, []);
 
   let ret = <></>
   if (apiKey === undefined) {
