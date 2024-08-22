@@ -124,6 +124,7 @@ async def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
 
 
 # create chunks
+# TODO: (rohan): remove dependency from langchain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 def create_chunks(text: str) -> list[str]:
   r_splitter = RecursiveCharacterTextSplitter(
