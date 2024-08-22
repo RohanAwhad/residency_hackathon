@@ -35,9 +35,10 @@ Current Features:
   source .local.env
   ```
 
-3. Create a python env for backend
+3. Create and activate python env for backend
   ```bash
   conda env create -f backend/env.yaml
+  conda activate pdf_extension_env
   ```
 
 4. Move to backend dir
@@ -45,9 +46,9 @@ Current Features:
   cd backend
   ```
 
-5. Create Postgres Container. This instantiation of container, will not delete the container on shut down. This way you can store your DB, unless you manually delete the container.
+5. Start docker containers by upping the docker compose
   ```bash
-  bash create_container.sh
+  docker-compose up -d
   ```
 
 6. Create tables in DB.
@@ -55,17 +56,12 @@ Current Features:
   python db_utils.py
   ```
 
-7. Start GROBID server. This will parse our PDF for us. We limit the CPU usage to 4 and RAM to 4GB. This gives the best results in terms of latency
-  ```bash
-  docker run --rm --init --ulimit core=0 -p 8070:8070 --memory=4096m --cpus=4 lfoppiano/grobid:0.8.0
-  ```
-
-8. Now, start the python API
+7. Now, start the python API
   ```bash
   python api.py
   ```
 
-9. Finally, we can install the extension. To do this, follow the steps below:
+8. Finally, we can install the extension. To do this, follow the steps below:
   1. Open "Google Chrome"
   2. Go to "Manage Extensions"
   3. Click on "Load Unpacked"
