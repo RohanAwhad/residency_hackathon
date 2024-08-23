@@ -1,4 +1,5 @@
 import './App.css'
+import loadingGif from '../public/loading.gif';
 import CitationCard from '@/components/CitationCard'
 
 import GraphTab from './components/GraphTab'
@@ -210,18 +211,25 @@ function App() {
           </TabsList>
           <TabsContent value="citations">
             <div>
-              {citations && citations.map(data => (
-                <CitationCard
-                  key={data.id}
-                  is_ready={data.is_ready}
-                  id={data.id}
-                  first_author={data.first_author_name}
-                  title={data.title}
-                  why={data.why}
-                  contribution={data.contribution}
-                  related_works={data.related_works}
-                />
-              ))}
+              {citations && citations.length > 0 ? (
+                citations.map(data => (
+                  <CitationCard
+                    key={data.id}
+                    is_ready={data.is_ready}
+                    id={data.id}
+                    first_author={data.first_author_name}
+                    title={data.title}
+                    why={data.why}
+                    contribution={data.contribution}
+                    related_works={data.related_works}
+                  />
+                ))
+              ) : (
+                <div className="flex justify-center items-center h-20 w-full">
+                  <img src={loadingGif} alt="Loading..." className='h-6 w-6' />
+                </div>
+
+              )}
             </div>
           </TabsContent>
           <TabsContent value="chat">
