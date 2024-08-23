@@ -1,5 +1,6 @@
 import './App.css'
 import CitationCard from '@/components/CitationCard'
+
 import GraphTab from './components/GraphTab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useRef, useState } from 'react'
@@ -52,34 +53,65 @@ function App() {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
+
   /*
   useEffect(() => {
     setUrl("https://arxiv.org/pdf/2006.15720")
+    setApiKey("")
   }, [])
-  */
 
+  */
 
   useEffect(() => {
     if (!url || !apiKey) return;
 
     // get reference info
     getRefIds(url, apiKey).then(data => {
+      // build skeleton for references
+      data.ref_ids.forEach(ref_id => {
+        setCitations(prev => {
+          return [...prev, { id: +ref_id.slice(1), is_ready: false }]
+        })
+      })
+
+
       // get information on references
       data.ref_ids.forEach(ref_id => {
         getRefData(data.url, ref_id).then(refData => {
-          if (refData.deleted) { return };
           console.log(refData);
-          setCitations(prev => {
-            return [...prev,
-            {
-              id: +ref_id.slice(1),
-              title: refData.title,
-              first_author_name: refData.author,
-              why: refData.q1_ans,
-              contribution: refData.q2_ans,
-              related_works: refData.q3_ans,
-            }]
-          })
+          if (refData.deleted) {
+            setCitations(prev => {
+              return prev.filter(citation => citation.id !== +ref_id.slice(1))
+            })
+          } else {
+            // code to update citation with refData
+            setCitations(prev => {
+              let ret = prev.map(citation => {
+                if (citation.id === +ref_id.slice(1)) {
+                  return {
+                    id: +ref_id.slice(1),
+                    title: refData.title,
+                    first_author_name: refData.author,
+                    why: refData.q1_ans,
+                    contribution: refData.q2_ans,
+                    related_works: refData.q3_ans,
+                    is_ready: true
+                  }
+                }
+                return citation
+              })
+
+              ret.sort((a, b) => {
+                if (a.is_ready && !b.is_ready) return -1;
+                if (!a.is_ready && b.is_ready) return 1;
+                if (a.is_ready && b.is_ready) return a.id - b.id;
+                return 0;
+              })
+
+
+              return ret
+            })
+          }
         })
       })
 
@@ -155,7 +187,6 @@ function App() {
 
   let ret = <></>
   if (apiKey === undefined) {
-    // TODO: (rohan) handle api key request
     ret = (
       <div className="grid grid-cols-1 w-full max-w-lg items-center mx-auto">
         <p className='invisible text-xs mb-2 text-rose-600' ref={errorMsgRef}>Unable to verify API Key</p>
@@ -182,6 +213,7 @@ function App() {
               {citations && citations.map(data => (
                 <CitationCard
                   key={data.id}
+                  is_ready={data.is_ready}
                   id={data.id}
                   first_author={data.first_author_name}
                   title={data.title}
