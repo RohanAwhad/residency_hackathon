@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users_table (
   api_key VARCHAR(255) UNIQUE NOT NULL
 );
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS papers (
   paper_url TEXT PRIMARY KEY,
@@ -22,8 +23,11 @@ CREATE TABLE IF NOT EXISTS papers (
   sections_json TEXT,
   summary_markdown TEXT,
   code TEXT,
-  fts TSVECTOR GENERATED ALWAYS AS (TSVECTOR('english', TRIM(LOWER(title))))
+  fts TSVECTOR GENERATED ALWAYS AS (TO_TSVECTOR('english', TRIM(LOWER(title)))) STORED
 );
+
+-- I am getting error here. Iam using Postgres with pgvector extension
+
 
 CREATE INDEX title_fts ON papers USING GIN (fts);
 

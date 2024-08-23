@@ -23,11 +23,12 @@ Current Features:
   ```bash
   # .local.env
   export PG_USER=residency
-  export PG_PASSWORD=password
+  export PG_PASSWORD= # provide a password for PostgreSQL
   export PG_HOST=localhost
   export PG_PORT=5433
   export PG_DB=pdf_extension
   export EMBEDDING_MODEL_DIR="avsolatorio/NoInstruct-small-Embedding-v0"
+  export JWT_SECRET= # provide a secret for API signing
   export BRAVE_SEARCH_API_KEY=  # get this from Brave Search API
   export TOGETHER_API_KEY=  # go to Together AI
   ```

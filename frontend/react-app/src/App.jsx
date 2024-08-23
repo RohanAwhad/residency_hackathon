@@ -64,6 +64,7 @@ function App() {
 
     // get reference info
     getRefIds(url, apiKey).then(data => {
+      // get information on references
       data.ref_ids.forEach(ref_id => {
         getRefData(data.url, ref_id).then(refData => {
           if (refData.deleted) { return };
@@ -71,7 +72,7 @@ function App() {
           setCitations(prev => {
             return [...prev,
             {
-              id: ref_id.slice(1),
+              id: +ref_id.slice(1),
               title: refData.title,
               first_author_name: refData.author,
               why: refData.q1_ans,
@@ -81,10 +82,11 @@ function App() {
           })
         })
       })
+
+      // get mindmap markdown 
+      getMindmapMd(url).then(md => setMarkdown(md));
     });
 
-    // get mindmap markdown
-    getMindmapMd(url).then(md => setMarkdown(md));
 
   }, [url, apiKey])
 
