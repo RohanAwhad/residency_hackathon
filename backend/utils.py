@@ -189,15 +189,21 @@ def embed(chunks: list[str], mode: str) -> Optional[list[list[float]]]:
 
 # chat
 def generate_chat_response(
-    context: Optional[str], messages: list[data_models.Message]
+    context: Optional[str], messages: list[data_models.Message], main_paper: str
 ) -> Optional[str]:
-    sys_prompt = """You are an helpful assistant who helps user to answer their queries related to a research paper in a conversational style.
-    
+
+    sys_prompt = f"""You are an helpful assistant who helps user to answer their queries related to a research paper in a conversational style.
+
     You will be answering the question based on the previous conversation history and the context provided. 
     If the question is not relevant to the conversation history, please answer only based on the context.
     If the question is not relevant to the context and you are unable to answer the question, please just say "I don't know the answer".
-  pass
-  """
+
+    The conversation is based on the following paper, so you can consider it as the main paper. 
+    If you need additional context to answer the question, relevant snippets from the referenced papers are provided as context.
+
+    Main Paper:
+    {main_paper}"""
+
     query = messages[-1].content
     modified_msg_prompt = f"### Context\n\n{context}\n\n---\n\nQuery: {query}"
     messages[-1].content = modified_msg_prompt
