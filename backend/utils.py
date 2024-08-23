@@ -54,7 +54,7 @@ async def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
             return ProcessCurrPaperOut(url, ref_ids)
 
     # download pdf
-    res = requests.get(url)
+    res = await asyncio.to_thread(requests.get, url)
     if res.status_code != 200:
         print("Failed to download PDF at:", url)
     fn = None
@@ -272,7 +272,7 @@ Give the output in the following format as json within three backticks (```json{
 """
 
 
-def search_brave(query: str, count: int):
+async def search_brave(query: str, count: int):
     # web search for reference
     brave_search_url = "https://api.search.brave.com/res/v1/web/search"
     headers = {
@@ -284,7 +284,9 @@ def search_brave(query: str, count: int):
         "q": query,
         "count": count,  # Brave Search API allows max 20 results per request
     }
-    response = requests.get(brave_search_url, headers=headers, params=params)
+    response = await asyncio.to_thread(
+        requests.get, brave_search_url, headers=headers, params=params
+    )
     if response.status_code != 200:
         print("Brave search api gave non-200 response:", response.status_code)
         return None
@@ -329,7 +331,7 @@ async def process_reference(
     paper = db_utils.search_paper_by_title(info.title.strip().lower())
     if not paper:
         query = f'"{info.title.strip().lower()}"'
-        response = search_brave(query, count=20)
+        response = await search_brave(query, count=20)
         if response is None:
             return None
         elif len(response) == 0:
@@ -342,7 +344,6 @@ async def process_reference(
                 print("Unable to get paper url from brave search")
                 db_utils.remove_reference(paper_url, ref_id)
                 return data_models.ProcessRefOut("", "", "", "", "", "", deleted=True)
-                return None
 
         ref_obj = await process_curr_paper(ref_url)
         if not ref_obj:

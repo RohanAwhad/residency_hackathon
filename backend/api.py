@@ -200,5 +200,5 @@ async def generate_code(inp: CodeReqIn):
 
 if __name__ == "__main__":
     print(
-        'Run it like: "python -m gunicorn -w 2 -b localhost:8080 -k uvicorn.workers.UvicornWorker api:app"'
+        'Run it like: "python -m gunicorn -w 2 -t 600 -b localhost:8080 -k uvicorn.workers.UvicornWorker api:app"'
     )
