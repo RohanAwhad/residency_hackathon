@@ -14,7 +14,7 @@ import utils
 
 JWT_SECRET = os.environ["JWT_SECRET"]
 
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -68,6 +68,10 @@ function App() {
 
     // get reference info
     getRefIds(url, apiKey).then(data => {
+
+      // sort data.ref_ids
+      data.ref_ids.sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+
       // build skeleton for references
       data.ref_ids.forEach(ref_id => {
         setCitations(prev => {
@@ -75,17 +79,13 @@ function App() {
         })
       })
 
-
       // get information on references
-      data.ref_ids.forEach(ref_id => {
-        getRefData(data.url, ref_id).then(refData => {
+      data.ref_ids.reduce((promise, ref_id) => {
+        return promise.then(() => getRefData(data.url, ref_id)).then(refData => {
           console.log(refData);
           if (refData.deleted) {
-            setCitations(prev => {
-              return prev.filter(citation => citation.id !== +ref_id.slice(1))
-            })
+            setCitations(prev => prev.filter(citation => citation.id !== +ref_id.slice(1)))
           } else {
-            // code to update citation with refData
             setCitations(prev => {
               let ret = prev.map(citation => {
                 if (citation.id === +ref_id.slice(1)) {
@@ -109,12 +109,11 @@ function App() {
                 return 0;
               })
 
-
               return ret
             })
           }
         })
-      })
+      }, Promise.resolve())
 
       // get mindmap markdown 
       getMindmapMd(url).then(md => setMarkdown(md));
@@ -172,6 +171,7 @@ function App() {
         setApiKey(possibleApiKey);
         chrome.storage.local.set({ apiKey: possibleApiKey });
       } else {
+        setApiKey(undefined);
         errorMsgRef.current.classList.remove('invisible')
       }
     });
@@ -180,8 +180,16 @@ function App() {
   useEffect(() => {
     chrome.storage.local.get('apiKey', (result) => {
       if (result.apiKey) {
-        setApiKey(result.apiKey);
-        apiKeyRef.current.value = result.apiKey;
+        const possibleApiKey = result.apiKey;
+        validateApiKey(possibleApiKey).then((res) => {
+          if (res.isValid) {
+            setApiKey(possibleApiKey);
+            chrome.storage.local.set({ apiKey: possibleApiKey });
+          } else {
+            setApiKey(undefined);
+            errorMsgRef.current.classList.remove('invisible')
+          }
+        });
       }
     });
   }, []);

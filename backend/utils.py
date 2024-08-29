@@ -52,6 +52,7 @@ async def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
         ref_ids = db_utils.get_reference_ids_of_paper(url)
         if ref_ids is not None:
             return ProcessCurrPaperOut(url, ref_ids)
+    print("Couldn't find paper in DB, processing it now ...")
 
     # download pdf
     res = await asyncio.to_thread(requests.get, url)
