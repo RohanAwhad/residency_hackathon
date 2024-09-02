@@ -21,11 +21,12 @@ def check_fastapi(secs):
             if res.status_code != 200:
                 print("FastAPI server is down")
                 # TODO: (rohan) send telegram message
-            time.sleep(secs)
 
         except Exception as e:
             print("While running FastAPI healthcheck, got the following error:", e)
             # TODO: (rohan) send telegram message
+        finally:
+            time.sleep(secs)
 
     print("Stopped FastAPI healtcheck thread")
 
@@ -59,10 +60,11 @@ def check_postgres(secs):
                     print("Postgres server didn't respond with 1")
                     # TODO: (rohan) send telegram message
 
-            time.sleep(secs)
         except Exception as e:
             print("While running Postgres healthcheck, got the following error:", e)
             # TODO: (rohan) send telegram message
+        finally:
+            time.sleep(secs)
 
     print("Stopped Postgres healtcheck thread")
 
@@ -82,10 +84,11 @@ def check_grobid(secs):
                 current_dir = os.getcwd()
                 subprocess.run(["docker", "compose", "up", "-d"], cwd=current_dir)
 
-            time.sleep(secs)
         except Exception as e:
             print("While running GROBID healthcheck, got the following error:", e)
             # TODO: (rohan) send telegram message
+        finally:
+            time.sleep(secs)
 
 
 if __name__ == "__main__":
