@@ -87,6 +87,13 @@ def check_grobid(secs):
         except Exception as e:
             print("While running GROBID healthcheck, got the following error:", e)
             # TODO: (rohan) send telegram message
+
+            # restart the server
+            import subprocess
+
+            # Execute the command in the current directory
+            current_dir = os.getcwd()
+            subprocess.run(["docker", "compose", "up", "-d"], cwd=current_dir)
         finally:
             time.sleep(secs)
 
