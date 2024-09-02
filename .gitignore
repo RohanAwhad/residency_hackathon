@@ -137,3 +137,4 @@ coverage/
 .pyrightconfig
 frontend/htmx-app
 
+*.env
