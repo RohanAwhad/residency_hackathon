@@ -29,6 +29,11 @@ async def read_root():
     return {"Hello": "World"}
 
 
+@app.get("/healthcheck")
+def healthcheck():
+    return "OK"
+
+
 class ValidateApiKeyIn(BaseModel):
     api_key: str
 
