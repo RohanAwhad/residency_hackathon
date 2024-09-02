@@ -6,7 +6,7 @@ import GraphTab from './components/GraphTab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useRef, useState } from 'react'
 
-import { getChatResponse, getCode, getRefIds, getRefData, getMindmapMd, validateApiKey } from '@/api';
+import { getChatResponse, getRefIds, getRefData, getMindmapMd, validateApiKey } from '@/api';
 import ChatHistory from '@/components/ChatHistory';
 import Suggestions from '@/components/Suggestions';
 
@@ -15,8 +15,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { solarizedlight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 function App() {
   const [apiKey, setApiKey] = useState(undefined)
@@ -33,13 +31,6 @@ function App() {
 
   // mindmap
   const [markdown, setMarkdown] = useState('')
-
-  // code
-  const [code, setCode] = useState('');
-  useEffect(() => {
-    if (!url || !markdown || !apiKey) return;
-    getCode(markdown, url).then(res => setCode(res));
-  }, [url, markdown, apiKey]);
 
   // ===
   // Utils
@@ -211,11 +202,10 @@ function App() {
     ret = (
       <>
         <Tabs defaultValue="citations" className="w-full h-screen">
-          <TabsList className="grid w-full grid-cols-4 h-fit">
+          <TabsList className="grid w-full grid-cols-3 h-fit">
             <TabsTrigger value="citations" className="text-base font-medium">References</TabsTrigger>
             <TabsTrigger value="chat" className="text-base font-medium">Chat</TabsTrigger>
             <TabsTrigger value="graph" className="text-base font-medium">Graph</TabsTrigger>
-            <TabsTrigger value="code" className="text-base font-medium">Code</TabsTrigger>
           </TabsList>
           <TabsContent value="citations">
             <div>
@@ -256,15 +246,6 @@ function App() {
           </TabsContent>
           <TabsContent value="graph">
             {markdown ? <GraphTab markdown={markdown} /> : <p>Generating mindmap...</p>}
-          </TabsContent>
-          <TabsContent value="code">
-            {code ? (
-              <SyntaxHighlighter language="python" style={solarizedlight}>
-                {code}
-              </SyntaxHighlighter>
-            ) : (
-              <div>Generating Code</div>
-            )}
           </TabsContent>
         </Tabs>
       </>
