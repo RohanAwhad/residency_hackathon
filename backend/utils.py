@@ -39,6 +39,32 @@ def _get_section_text(sections):
 
 
 async def parse_with_scipdf(fn: str) -> dict:
+    # before sending a request check if server is alive
+    try:
+        res = requests.get(f'http://{os.environ['GROBID_SERVER_IP']}:8070/api/isalive')
+        if res.status_code != 200 or res.text != 'true':
+            raise Exception('Grobid server is not alive')
+    except Exception as e:
+        print('Error:', e)
+        print('Starting Grobid Server')
+        # boto3 script to start server
+        import boto3
+        instance_name = 'grobid-server'
+        region = 'us-east-1'
+        ec2 = boto3.client('ec2', aws_access_key_id=os.environ['AWS_ACCESS_KEY'], aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'], region_name=region)
+        # Find the instance by name
+        response = ec2.describe_instances(Filters=[{'Name': 'tag:Name', 'Values': [instance_name]}])
+        # Check if any instances were found
+        if not response['Reservations']: print(f"No instance found with name: {instance_name}")
+        # Get the instance ID
+        instance_id = response['Reservations'][0]['Instances'][0]['InstanceId']
+        # Start the instance
+        try:
+            ec2.start_instances(InstanceIds=[instance_id])
+            print(f"Successfully started instance {instance_name} (ID: {instance_id})")
+        except boto3.exceptions.ClientError as e:
+            print(f"Error starting instance: {str(e)}")
+
     return await asyncio.to_thread(scipdf.parse_pdf_to_dict, fn)
 
 
