@@ -41,7 +41,7 @@ def _get_section_text(sections):
 async def parse_with_scipdf(fn: str) -> dict:
     # before sending a request check if server is alive
     try:
-        res = requests.get(f'http://{os.environ['GROBID_SERVER_IP']}:8070/api/isalive')
+        res = requests.get(f'http://{os.environ["GROBID_SERVER_IP"]}:8070/api/isalive')
         if res.status_code != 200 or res.text != 'true':
             raise Exception('Grobid server is not alive')
     except Exception as e:
@@ -65,7 +65,7 @@ async def parse_with_scipdf(fn: str) -> dict:
         except boto3.exceptions.ClientError as e:
             print(f"Error starting instance: {str(e)}")
 
-    return await asyncio.to_thread(scipdf.parse_pdf_to_dict, fn)
+    return await asyncio.to_thread(scipdf.parse_pdf_to_dict, fn, grobid_url=f'http://{os.environ["GROBID_SERVER_IP"]}:8070')
 
 
 async def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
