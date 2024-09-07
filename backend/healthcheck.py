@@ -103,7 +103,7 @@ if __name__ == "__main__":
     threads = [
         threading.Thread(target=check_fastapi, args=(10,)),
         threading.Thread(target=check_postgres, args=(30,)),
-        threading.Thread(target=check_grobid, args=(10,)),
+        #threading.Thread(target=check_grobid, args=(10,)),  This will be done on the grobid-server
     ]
 
     # run healthcheck threads

@@ -61,6 +61,7 @@ async def parse_with_scipdf(fn: str) -> dict:
         # Start the instance
         try:
             ec2.start_instances(InstanceIds=[instance_id])
+            await asyncio.sleep(30)  # sleep for 30secs because cold start
             print(f"Successfully started instance {instance_name} (ID: {instance_id})")
         except boto3.exceptions.ClientError as e:
             print(f"Error starting instance: {str(e)}")
@@ -91,14 +92,18 @@ async def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
     print("PDF downloaded at:", fn)
 
     # parse pdf
-    try:
-        pdf_dict = await parse_with_scipdf(fn)
-    except Exception as e:
-        print(e)
-        pdf_dict = None
-    finally:
-        os.remove(fn)  # delete tmp file post processing
+    pdf_parse_retries = 3
+    pdf_dict = None
+    while pdf_parse_retries > 0:
+        try:
+            pdf_dict = await parse_with_scipdf(fn)
+            if pdf_dict is not None: break
+        except Exception as e:
+            print(e)
+        finally:
+            pdf_parse_retries -= 1
 
+    os.remove(fn)  # delete tmp file post processing
     if pdf_dict is None:
         return None
     paper = data_models.Papers(
