@@ -115,7 +115,6 @@ async def process_curr_paper(url: str) -> Optional[ProcessCurrPaperOut]:
         if sec["text"]:
             chunks.extend(create_chunks(sec["text"]))
 
-    # TODO (rohan): create embeddings of those chunks
     embeddings = None
     if len(chunks) == 0:
         print(f"Chunking Failed for paper with url: {url}!")
@@ -363,19 +362,19 @@ async def process_reference(
             return None
         elif len(response) == 0:
             # remove the corresponding reference from the paper if the search result returned nothing
-            db_utils.remove_reference(paper_url, ref_id)
+            #db_utils.remove_reference(paper_url, ref_id)
             return data_models.ProcessRefOut("", "", "", "", "", "", deleted=True)
         else:
             ref_url = get_pdf_url_from_search_results(response)
             if not ref_url:
                 print("Unable to get paper url from brave search")
-                db_utils.remove_reference(paper_url, ref_id)
+                #db_utils.remove_reference(paper_url, ref_id)
                 return data_models.ProcessRefOut("", "", "", "", "", "", deleted=True)
 
         ref_obj = await process_curr_paper(ref_url)
         if not ref_obj:
             print("Error while processing reference paper")
-            db_utils.remove_reference(paper_url, ref_id)
+            #db_utils.remove_reference(paper_url, ref_id)
             return data_models.ProcessRefOut("", "", "", "", "", "", deleted=True)
 
         ref_url = ref_obj.url
